@@ -43,7 +43,7 @@ export function Auth({ onAuthSuccess }: AuthProps) {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const _handleGoogleLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',

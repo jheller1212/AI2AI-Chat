@@ -1,5 +1,3 @@
-import type { AIModel } from '../../types';
-
 export interface APIResponse {
   content: string;
   usage?: {

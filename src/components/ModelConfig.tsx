@@ -33,9 +33,9 @@ const MODEL_VERSIONS = [
 ];
 
 export function ModelConfig({
-  label,
-  model,
-  onModelChange,
+  label: _label,
+  model: _model,
+  onModelChange: _onModelChange,
   apiKey,
   onApiKeyChange,
   orgId,
