@@ -192,7 +192,10 @@ export function ModelConfig({
           min="1"
           max={currentMax}
           value={maxTokens}
-          onChange={(e) => onMaxTokensChange(Number(e.target.value))}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            onMaxTokensChange(Math.max(1, Math.min(v, currentMax)));
+          }}
           className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
           disabled={disabled}
         />

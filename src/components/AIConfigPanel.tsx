@@ -48,6 +48,7 @@ export function AIConfigPanel({
           type="text"
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
+          maxLength={50}
           className="text-lg font-medium text-gray-900 bg-transparent border-b border-transparent hover:border-gray-300 focus:border-indigo-500 focus:outline-none w-full"
           placeholder="Bot name"
         />

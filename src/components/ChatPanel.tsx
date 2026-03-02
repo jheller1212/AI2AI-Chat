@@ -11,6 +11,7 @@ interface ChatPanelProps {
   onSendMessage: () => void;
   autoInteract: boolean;
   onAutoInteractChange: (value: boolean) => void;
+  interactionCount: number;
   maxInteractions: number;
   responseDelay: number;
   onResponseDelayChange: (seconds: number) => void;
@@ -28,6 +29,7 @@ export function ChatPanel({
   onSendMessage,
   autoInteract,
   onAutoInteractChange,
+  interactionCount,
   maxInteractions,
   responseDelay,
   onResponseDelayChange,
@@ -44,15 +46,22 @@ export function ChatPanel({
           <span>vs</span>
           <span className="font-medium text-emerald-700">{botName2}</span>
         </div>
-        {onExport && (
-          <button
-            onClick={onExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Export
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {isLoading && autoInteract && (
+            <span className="text-xs text-gray-400 tabular-nums">
+              Turn {interactionCount + 1} / {maxInteractions}
+            </span>
+          )}
+          {onExport && (
+            <button
+              onClick={onExport}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
@@ -77,8 +86,9 @@ export function ChatPanel({
                 onSendMessage();
               }
             }}
+            disabled={isLoading}
             placeholder="Type your opening message…"
-            className="flex-1 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
+            className="flex-1 p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           />
           <button
             onClick={onSendMessage}
@@ -90,7 +100,7 @@ export function ChatPanel({
             ) : (
               <Send className="w-4 h-4" />
             )}
-            Send
+            {isLoading ? 'Thinking…' : 'Send'}
           </button>
         </div>
 

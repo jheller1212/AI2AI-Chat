@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { validateModelConfig } from '../lib/validation';
 import { generateResponse } from '../lib/api/conversation';
@@ -62,10 +62,23 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [autoInteract, setAutoInteract] = useState(false);
-  const [_interactionCount, setInteractionCount] = useState(0);
+  const [interactionCount, setInteractionCount] = useState(0);
   const MAX_INTERACTIONS = 5;
 
-  // Persist settings to localStorage whenever they change
+  // Refs so the recursive auto-interact chain reads the latest values, not stale closures
+  const autoInteractRef = useRef(autoInteract);
+  useEffect(() => { autoInteractRef.current = autoInteract; }, [autoInteract]);
+
+  const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cancel any pending auto-interact timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (pendingTimeoutRef.current) clearTimeout(pendingTimeoutRef.current);
+    };
+  }, []);
+
+  // Persist settings to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       model1, model2, apiKey1, apiKey2, orgId1, orgId2,
@@ -94,16 +107,18 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       content: msg.content,
       word_count: msg.wordCount ?? 0,
       time_taken: msg.timeTaken ?? 0
-    }).then(() => {});
+    }).then(({ error }) => {
+      if (error) console.error('Failed to save message:', error.message);
+    });
   };
 
-  const generateAIResponse = async (
+  const generateAIResponse = useCallback(async (
     config: ChatConfig,
     currentMessages: Message[],
     isFirstAI: boolean,
     conversationId: string | null,
     currentCount: number
-  ) => {
+  ): Promise<Message | null> => {
     try {
       const response = await generateResponse(config, currentMessages);
       setMessages(prev => [...prev, response]);
@@ -112,7 +127,8 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         saveMessageToDb(conversationId, response, 'assistant', isFirstAI ? botName1 : botName2);
       }
 
-      if (autoInteract && currentCount < MAX_INTERACTIONS) {
+      // Read from ref so toggling auto-interact off mid-chain takes effect immediately
+      if (autoInteractRef.current && currentCount < MAX_INTERACTIONS) {
         const otherConfig: ChatConfig = isFirstAI ? {
           model: model2, apiKey: apiKey2, orgId: orgId2,
           modelVersion: modelVersion2, temperature: temperature2,
@@ -123,22 +139,35 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
           maxTokens: maxTokens1, systemPrompt: systemPrompt1
         };
 
-        setTimeout(() => {
+        pendingTimeoutRef.current = setTimeout(() => {
           setInteractionCount(currentCount + 1);
           generateAIResponse(otherConfig, [...currentMessages, response], !isFirstAI, conversationId, currentCount + 1);
         }, responseDelay * 1000);
+      } else {
+        setIsLoading(false);
       }
 
       return response;
     } catch (error) {
-      setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
+      const msg = error instanceof Error
+        ? (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message)
+        : 'An unknown error occurred';
+      setErrors([msg]);
       setIsLoading(false);
       return null;
     }
-  };
+  }, [botName1, botName2, model1, model2, apiKey1, apiKey2, orgId1, orgId2,
+      modelVersion1, modelVersion2, temperature1, temperature2,
+      maxTokens1, maxTokens2, systemPrompt1, systemPrompt2, responseDelay]);
 
   const handleSendMessage = async () => {
-    if (!validateConfigs() || !userInput.trim()) return;
+    if (!validateConfigs() || !userInput.trim() || isLoading) return;
+
+    // Cancel any in-flight auto-interact chain before starting a new one
+    if (pendingTimeoutRef.current) {
+      clearTimeout(pendingTimeoutRef.current);
+      pendingTimeoutRef.current = null;
+    }
 
     const newUserMessage: Message = {
       id: crypto.randomUUID(),
@@ -151,10 +180,11 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
     setUserInput('');
     setIsLoading(true);
     setInteractionCount(0);
+    setErrors([]);
 
     // Create conversation record with title = first 80 chars of user message
     let conversationId: string | null = null;
-    const { data } = await supabase.from('conversations').insert({
+    const { data, error: convErr } = await supabase.from('conversations').insert({
       user_id: user.id,
       title: newUserMessage.content.slice(0, 80),
       model1_type: model1, model1_version: modelVersion1,
@@ -164,16 +194,19 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       interaction_limit: MAX_INTERACTIONS
     }).select('id').single();
 
-    if (data) {
+    if (convErr) {
+      console.error('Failed to create conversation:', convErr.message);
+    } else if (data) {
       conversationId = data.id;
-      // Save the user's opening message so history is complete
       supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'user',
         model: 'User',
         content: newUserMessage.content,
         word_count: newUserMessage.content.split(/\s+/).filter(Boolean).length
-      }).then(() => {});
+      }).then(({ error }) => {
+        if (error) console.error('Failed to save user message:', error.message);
+      });
     }
 
     try {
@@ -192,7 +225,6 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       await generateAIResponse(config1, allMessages, true, conversationId, 0);
     } catch (error) {
       setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -237,7 +269,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-6">
           {showSettings && (
-            <div className="w-96 flex-shrink-0">
+            <div className="hidden lg:block w-96 flex-shrink-0">
               <AIConfigPanel
                 title={botName1}
                 onTitleChange={setBotName1}
@@ -260,7 +292,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
           )}
 
           <div className="flex-1 flex flex-col gap-4 min-w-0">
-            <ErrorDisplay errors={errors} />
+            <ErrorDisplay errors={errors} onClear={() => setErrors([])} />
             <ChatPanel
               messages={messages}
               isLoading={isLoading}
@@ -269,6 +301,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
               onSendMessage={handleSendMessage}
               autoInteract={autoInteract}
               onAutoInteractChange={setAutoInteract}
+              interactionCount={interactionCount}
               maxInteractions={MAX_INTERACTIONS}
               responseDelay={responseDelay}
               onResponseDelayChange={setResponseDelay}
@@ -280,7 +313,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
           </div>
 
           {showSettings && (
-            <div className="w-96 flex-shrink-0">
+            <div className="hidden lg:block w-96 flex-shrink-0">
               <AIConfigPanel
                 title={botName2}
                 onTitleChange={setBotName2}
