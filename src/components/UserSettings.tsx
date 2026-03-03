@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { X, Settings, User as UserIcon, Mail, Lock, Save, Clock, Trash2 } from 'lucide-react';
+import { X, Settings, User as UserIcon, Mail, Lock, Save, Clock, Trash2, KeyRound } from 'lucide-react';
+import { loadVault, saveVault, type ProviderVault } from '../lib/apiKeyVault';
 
 interface UserSettingsProps {
   user: User;
@@ -19,12 +20,19 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted }: Us
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [deleteStep, setDeleteStep] = useState<'idle' | 'confirm'>('idle');
   const [deleting, setDeleting] = useState(false);
+  const [vault, setVault] = useState<ProviderVault>(() => loadVault());
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', handleEsc);
     return () => document.removeEventListener('keydown', handleEsc);
   }, [onClose]);
+
+  const handleVaultChange = (provider: keyof ProviderVault, value: string) => {
+    const updated = { ...vault, [provider]: value };
+    setVault(updated);
+    saveVault(updated);
+  };
 
   const handleSave = async () => {
     if (newPassword && newPassword !== confirmPassword) {
@@ -175,6 +183,41 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted }: Us
             </button>
           </div>
         )}
+
+        {/* API Key Vault */}
+        <div className="px-6 pb-4 pt-2">
+          <div className="rounded-xl border border-gray-200 dark:border-gray-600 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Saved API Keys</p>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Store one key per provider. When you switch a bot's provider, its key is filled in automatically. Keys are kept in this browser only and cleared on sign-out.
+            </p>
+            {(
+              [
+                { provider: 'gpt4' as const, label: 'OpenAI', placeholder: 'sk-...' },
+                { provider: 'claude' as const, label: 'Anthropic', placeholder: 'sk-ant-...' },
+                { provider: 'gemini' as const, label: 'Google Gemini', placeholder: 'AIza...' },
+                { provider: 'mistral' as const, label: 'Mistral', placeholder: 'Your Mistral API key' },
+              ] as const
+            ).map(({ provider, label, placeholder }) => (
+              <div key={provider} className="flex items-center gap-3">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-24 flex-shrink-0">{label}</span>
+                <input
+                  type="password"
+                  value={vault[provider]}
+                  onChange={(e) => handleVaultChange(provider, e.target.value)}
+                  className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                  placeholder={placeholder}
+                />
+              </div>
+            ))}
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Avoid saving keys on shared or public computers.
+            </p>
+          </div>
+        </div>
 
         {/* Danger Zone */}
         <div className="px-6 pb-4 pt-2">

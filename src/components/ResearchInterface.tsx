@@ -3,6 +3,7 @@ import type { User } from '@supabase/supabase-js';
 import { validateModelConfig } from '../lib/validation';
 import { generateResponse } from '../lib/api/conversation';
 import { supabase } from '../lib/supabase';
+import { loadVault } from '../lib/apiKeyVault';
 import type { AIModel, Message, ChatConfig } from '../types';
 import { Header } from './Header';
 import { ErrorDisplay } from './ErrorDisplay';
@@ -39,8 +40,14 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
 
   const [model1, setModel1] = useState<AIModel>(saved?.model1 ?? 'gpt4');
   const [model2, setModel2] = useState<AIModel>(saved?.model2 ?? 'gpt4');
-  const [apiKey1, setApiKey1] = useState<string>(saved?.apiKey1 ?? '');
-  const [apiKey2, setApiKey2] = useState<string>(saved?.apiKey2 ?? '');
+  const [apiKey1, setApiKey1] = useState<string>(() => {
+    if (saved?.apiKey1) return saved.apiKey1;
+    return loadVault()[saved?.model1 ?? 'gpt4'] ?? '';
+  });
+  const [apiKey2, setApiKey2] = useState<string>(() => {
+    if (saved?.apiKey2) return saved.apiKey2;
+    return loadVault()[saved?.model2 ?? 'gpt4'] ?? '';
+  });
   const [orgId1, setOrgId1] = useState<string>(saved?.orgId1 ?? '');
   const [orgId2, setOrgId2] = useState<string>(saved?.orgId2 ?? '');
   const [modelVersion1, setModelVersion1] = useState<string>(saved?.modelVersion1 ?? 'gpt-4o');

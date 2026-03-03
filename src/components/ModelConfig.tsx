@@ -3,6 +3,7 @@ import { AIModel } from '../types';
 import { Info } from 'lucide-react';
 import { ApiKeyInstructions } from './ApiKeyInstructions';
 import { InfoTooltip } from './InfoTooltip';
+import { loadVault } from '../lib/apiKeyVault';
 
 interface ModelConfigProps {
   label: string;
@@ -97,6 +98,8 @@ export function ModelConfig({
     const firstVersion = PROVIDER_MODELS[newModel][0];
     onModelVersionChange(firstVersion.id);
     onMaxTokensChange(Math.min(maxTokens, firstVersion.maxTokens));
+    const vaultKey = loadVault()[newModel];
+    if (vaultKey) onApiKeyChange(vaultKey);
   };
 
   return (
