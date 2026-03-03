@@ -1,25 +1,76 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { LogIn, Mail, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface AuthProps {
   onAuthSuccess: () => void;
   initialIsSignUp?: boolean;
 }
 
+const TERMS_TEXT = `TERMS OF USE & USER AGREEMENT
+Last updated: March 2026
+
+By creating an account and using AI2AI Chat ("the Service"), you agree to the following terms:
+
+1. ACCEPTANCE OF TERMS
+By registering, you confirm that you are at least 16 years of age and legally capable of entering into this agreement.
+
+2. SERVICE PROVIDED "AS IS"
+The Service is provided on an "as is" and "as available" basis without warranties of any kind, express or implied. The operator of this Service makes no representations or warranties regarding the accuracy, reliability, completeness, or fitness for a particular purpose of any content generated through the Service. Use of the Service is entirely at your own risk.
+
+3. LIMITATION OF LIABILITY
+To the fullest extent permitted by applicable law, the operator of this Service shall not be liable for any direct, indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, the Service — including but not limited to damages resulting from AI-generated content, data loss, or reliance on information obtained through the Service.
+
+4. THIRD-PARTY AI SERVICES & API KEYS
+You are solely responsible for obtaining and managing your own API keys from third-party AI providers (including but not limited to OpenAI, Anthropic, Google, and Mistral). You agree to comply with the terms of service of any third-party AI provider whose services you access through this platform. The operator assumes no responsibility for charges, restrictions, or actions taken by third-party providers in relation to your API usage.
+
+5. ACCEPTABLE USE
+You agree not to use the Service for any unlawful purpose, to generate harmful or illegal content, or to violate the terms of any third-party service accessed through the platform.
+
+6. EMAIL COMMUNICATIONS
+By creating an account, you agree to receive service-related emails including account confirmations, important notices, and occasional product updates. You may opt out of non-essential communications at any time.
+
+7. DATA
+Conversation data you generate may be stored to provide the Service. You retain ownership of your content. The operator will not sell your personal data to third parties.
+
+8. CHANGES TO TERMS
+These terms may be updated from time to time. Continued use of the Service after changes constitutes acceptance of the revised terms.`;
+
 export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
   const [isSignUp, setIsSignUp] = useState(initialIsSignUp);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
 
+  const switchMode = (signUp: boolean) => {
+    setIsSignUp(signUp);
+    setError(null);
+    setConfirmPassword('');
+    setAgreedToTerms(false);
+    setShowTerms(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setLoading(true);
 
+    if (isSignUp) {
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
+      if (!agreedToTerms) {
+        setError('You must agree to the Terms of Use to create an account.');
+        return;
+      }
+    }
+
+    setLoading(true);
     try {
       if (isSignUp) {
         const { data, error } = await supabase.auth.signUp({
@@ -28,9 +79,6 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
           options: { emailRedirectTo: window.location.origin }
         });
         if (error) throw error;
-
-        // If the user already has a session (e.g. email confirmation disabled in Supabase),
-        // go straight to the app. Otherwise show the "check your email" screen.
         if (data.session) {
           onAuthSuccess();
         } else {
@@ -61,7 +109,7 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
             </p>
           </div>
           <button
-            onClick={() => { setAwaitingConfirmation(false); setIsSignUp(false); }}
+            onClick={() => { setAwaitingConfirmation(false); switchMode(false); }}
             className="w-full py-2 px-4 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
           >
             Back to Sign In
@@ -73,11 +121,11 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg">
+      <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-xl shadow-lg">
         <div className="text-center">
           <LogIn className="mx-auto h-12 w-12 text-indigo-600" />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            {isSignUp ? 'Create your account' : 'Sign in to AI2AI-Chat'}
+            {isSignUp ? 'Create your account' : 'Sign in to AI2AI Chat'}
           </h2>
         </div>
 
@@ -90,60 +138,104 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
           </div>
         )}
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm space-y-4">
-            <div>
-              <label htmlFor="email" className="sr-only">Email address</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Email address"
-                />
-              </div>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          {/* Email */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Mail className="h-5 w-5 text-gray-400" />
             </div>
-            <div>
-              <label htmlFor="password" className="sr-only">Password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none rounded-lg relative block w-full pl-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="Password (min 6 characters)"
-                />
-              </div>
-            </div>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="appearance-none rounded-lg block w-full pl-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="Email address"
+            />
           </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Processing…' : isSignUp ? 'Sign up' : 'Sign in'}
-            </button>
+          {/* Password */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Lock className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              id="password"
+              type="password"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="appearance-none rounded-lg block w-full pl-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              placeholder="Password (min 6 characters)"
+            />
           </div>
+
+          {/* Confirm password — sign-up only */}
+          {isSignUp && (
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="confirmPassword"
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="appearance-none rounded-lg block w-full pl-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                placeholder="Confirm password"
+              />
+            </div>
+          )}
+
+          {/* Terms & Conditions — sign-up only */}
+          {isSignUp && (
+            <div className="space-y-2">
+              {/* Expandable terms box */}
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowTerms(!showTerms)}
+                  className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <span>View Terms of Use &amp; User Agreement</span>
+                  {showTerms ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
+                {showTerms && (
+                  <pre className="px-4 py-3 text-xs text-gray-600 bg-white max-h-48 overflow-y-auto whitespace-pre-wrap font-sans leading-relaxed">
+                    {TERMS_TEXT}
+                  </pre>
+                )}
+              </div>
+
+              {/* Checkbox */}
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                />
+                <span className="text-sm text-gray-600">
+                  I have read and agree to the Terms of Use, including that the service is provided without warranty, and I consent to receiving service-related emails.
+                </span>
+              </label>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Processing…' : isSignUp ? 'Create Account' : 'Sign in'}
+          </button>
         </form>
 
         <div className="text-center">
           <button
-            onClick={() => { setIsSignUp(!isSignUp); setError(null); }}
+            onClick={() => switchMode(!isSignUp)}
             className="text-sm text-indigo-600 hover:text-indigo-500"
           >
             {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
