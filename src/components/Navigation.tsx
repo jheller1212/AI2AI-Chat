@@ -17,14 +17,14 @@ export function Navigation({ onAuthClick, onSignUpClick, isAuthenticated }: Navi
             {!isAuthenticated && (
               <button
                 onClick={onAuthClick}
-                className="px-4 py-2 text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                className="px-4 py-2 text-sm font-medium text-orange-600 hover:text-orange-500"
               >
                 Sign in
               </button>
             )}
             <button
               onClick={isAuthenticated ? onAuthClick : onSignUpClick}
-              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-emerald-500 rounded-lg hover:from-indigo-500 hover:to-emerald-400 shadow-md hover:shadow-lg transition-all"
+              className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-sky-500 rounded-lg hover:from-orange-400 hover:to-sky-400 shadow-md hover:shadow-lg transition-all"
             >
               {isAuthenticated ? 'Open App' : 'Get Started'}
             </button>
