@@ -47,6 +47,12 @@ export function ConversationHistory({ userId, onClose, onLoad }: ConversationHis
   const [messagesError, setMessagesError] = useState<string | null>(null);
 
   useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [onClose]);
+
+  useEffect(() => {
     const fetchConversations = async () => {
       try {
         // Single query with embedded message count — avoids N+1 queries

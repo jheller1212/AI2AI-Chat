@@ -136,6 +136,9 @@ export function ModelConfig({
           placeholder={API_KEY_PLACEHOLDERS[model]}
           disabled={disabled}
         />
+        <p className="text-xs text-amber-600">
+          Stored in this browser only. Clear before using shared devices.
+        </p>
       </div>
 
       {model === 'gpt4' && (

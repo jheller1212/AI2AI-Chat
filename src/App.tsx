@@ -29,6 +29,15 @@ function App() {
   }, []);
 
   const handleSignOut = async () => {
+    // Clear API keys from localStorage before signing out so they are not
+    // left behind on shared/public devices.
+    try {
+      const raw = localStorage.getItem('ai2ai_settings');
+      if (raw) {
+        const s = JSON.parse(raw);
+        localStorage.setItem('ai2ai_settings', JSON.stringify({ ...s, apiKey1: '', apiKey2: '' }));
+      }
+    } catch { /* ignore */ }
     await supabase.auth.signOut();
   };
 

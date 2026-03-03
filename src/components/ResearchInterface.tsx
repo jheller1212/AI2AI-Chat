@@ -81,6 +81,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   const repetitionCurrentRef = useRef(0);
   const initialChainRef = useRef<{ userMsg: string; allMessages: Message[]; localConversationId: string } | null>(null);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isStoppedRef = useRef(false);
 
   useEffect(() => { autoInteractRef.current = autoInteract; }, [autoInteract]);
   useEffect(() => { maxInteractionsRef.current = maxInteractions; }, [maxInteractions]);
@@ -191,7 +192,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         saveMessageToDb(dbConversationId, taggedResponse, 'assistant', isFirstAI ? botName1 : botName2);
       }
 
-      if (autoInteractRef.current && currentCount < maxInteractionsRef.current - 1) {
+      if (autoInteractRef.current && currentCount < maxInteractionsRef.current - 1 && !isStoppedRef.current) {
         const otherConfig: ChatConfig = isFirstAI ? {
           model: model2, apiKey: apiKey2, orgId: orgId2,
           modelVersion: modelVersion2, temperature: temperature2,
@@ -266,7 +267,10 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         // Short pause between repetitions, then start next chain
         pendingTimeoutRef.current = setTimeout(() => {
           if (initialChainRef.current) {
-            startChain(initialChainRef.current.userMsg, initialChainRef.current.allMessages, nextRepetition, initialChainRef.current.localConversationId);
+            // Each repetition gets its own UUID so DB records and CSV rows are
+            // correctly grouped — reusing the same ID would cause a duplicate-key
+            // error on Supabase and make repetitions indistinguishable in exports.
+            startChain(initialChainRef.current.userMsg, initialChainRef.current.allMessages, nextRepetition, crypto.randomUUID());
           }
         }, 1500);
       } else {
@@ -297,6 +301,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       ? { id: crypto.randomUUID(), role: 'user', content: trimmed, timestamp: Date.now() }
       : { id: crypto.randomUUID(), role: 'user', content: 'Please begin the conversation based on your instructions.', timestamp: Date.now(), hidden: true };
 
+    isStoppedRef.current = false;
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
     setIsLoading(true);
@@ -322,7 +327,17 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
     }
   };
 
+  const handleStop = () => {
+    isStoppedRef.current = true;
+    if (pendingTimeoutRef.current) {
+      clearTimeout(pendingTimeoutRef.current);
+      pendingTimeoutRef.current = null;
+    }
+    // isLoading will be set to false once the in-flight request resolves
+  };
+
   const handleResetChat = () => {
+    isStoppedRef.current = false;
     if (pendingTimeoutRef.current) {
       clearTimeout(pendingTimeoutRef.current);
       pendingTimeoutRef.current = null;
@@ -353,6 +368,15 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   };
 
   const handleExportCsv = () => {
+    // Always wrap every field in double-quotes and escape inner quotes as "".
+    // Also neutralise formula-injection characters (=, +, -, @) that spreadsheet
+    // apps evaluate when they appear at the start of an unquoted cell value.
+    const csvField = (val: string) => {
+      let s = String(val);
+      if (s.match(/^[=+\-@]/)) s = `'${s}`; // prefix to prevent formula execution
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+
     const rows = [['conversation_id', 'timestamp', 'sender', 'prompt', 'model', 'temperature', 'role', 'content', 'words', 'response_time_ms']];
     messages
       .filter(m => m.role !== 'system' && !m.hidden)
@@ -362,16 +386,16 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         const fallbackModel = m.botIndex === 1 ? modelVersion1 : m.botIndex === 2 ? modelVersion2 : '';
         const fallbackTemp = m.botIndex === 1 ? temperature1 : m.botIndex === 2 ? temperature2 : '';
         rows.push([
-          m.conversationId ?? '',
-          new Date(m.timestamp).toISOString(),
-          label,
-          `"${(m.systemPrompt ?? fallbackPrompt).replace(/"/g, '""')}"`,
-          m.modelVersion ?? fallbackModel,
-          String(m.temperature ?? fallbackTemp),
-          m.role,
-          `"${m.content.replace(/"/g, '""')}"`,
-          String(m.wordCount ?? ''),
-          String(m.timeTaken ?? '')
+          csvField(m.conversationId ?? ''),
+          csvField(new Date(m.timestamp).toISOString()),
+          csvField(label),
+          csvField(m.systemPrompt ?? fallbackPrompt),
+          csvField(m.modelVersion ?? fallbackModel),
+          csvField(String(m.temperature ?? fallbackTemp)),
+          csvField(m.role),
+          csvField(m.content),
+          csvField(String(m.wordCount ?? '')),
+          csvField(String(m.timeTaken ?? ''))
         ]);
       });
     const csv = rows.map(r => r.join(',')).join('\n');
@@ -463,6 +487,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
               onExportTxt={messages.filter(m => !m.hidden && m.role !== 'system').length > 0 ? handleExportTxt : undefined}
               onExportCsv={messages.filter(m => !m.hidden && m.role !== 'system').length > 0 ? handleExportCsv : undefined}
               onResetChat={messages.length > 0 ? handleResetChat : undefined}
+              onStop={isLoading ? handleStop : undefined}
               botName1={botName1}
               botName2={botName2}
               bubbleColor1={bubbleColor1}

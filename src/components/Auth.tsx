@@ -46,6 +46,7 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
 
   const switchMode = (signUp: boolean) => {
     setIsSignUp(signUp);
@@ -53,6 +54,24 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
     setConfirmPassword('');
     setAgreedToTerms(false);
     setShowTerms(false);
+    setForgotSent(false);
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) { setError('Enter your email address above, then click Forgot password.'); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin,
+      });
+      if (error) throw error;
+      setForgotSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send reset email.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -249,6 +268,23 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
             {loading ? 'Processing…' : isSignUp ? 'Create Account' : 'Sign in'}
           </button>
         </form>
+
+        {!isSignUp && (
+          <div className="text-center space-y-1">
+            {forgotSent ? (
+              <p className="text-sm text-emerald-600">Reset link sent — check your inbox.</p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleForgotPassword}
+                disabled={loading}
+                className="text-sm text-gray-500 hover:text-indigo-600 disabled:opacity-50"
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="text-center">
           <button
