@@ -20,6 +20,10 @@ interface AIConfigPanelProps {
   onMaxTokensChange: (tokens: number) => void;
   systemPrompt: string;
   onSystemPromptChange: (prompt: string) => void;
+  bubbleColor: string;
+  onBubbleColorChange: (color: string) => void;
+  textColor: string;
+  onTextColorChange: (color: string) => void;
 }
 
 export function AIConfigPanel({
@@ -39,6 +43,10 @@ export function AIConfigPanel({
   onMaxTokensChange,
   systemPrompt,
   onSystemPromptChange,
+  bubbleColor,
+  onBubbleColorChange,
+  textColor,
+  onTextColorChange,
 }: AIConfigPanelProps) {
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -76,6 +84,43 @@ export function AIConfigPanel({
           className="w-full p-2 border border-gray-300 rounded-md min-h-[100px] text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           placeholder="Enter system prompt…"
         />
+      </div>
+      <div className="mt-4 pt-4 border-t border-gray-100">
+        <p className="text-sm font-medium text-gray-700 mb-3">Message Appearance</p>
+        <div className="flex gap-6">
+          <label className="flex flex-col gap-1.5 text-xs text-gray-600">
+            Bubble color
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={bubbleColor}
+                onChange={(e) => onBubbleColorChange(e.target.value)}
+                className="w-8 h-8 rounded cursor-pointer border border-gray-200"
+                title="Bubble background color"
+              />
+              <span className="font-mono text-gray-400">{bubbleColor}</span>
+            </div>
+          </label>
+          <label className="flex flex-col gap-1.5 text-xs text-gray-600">
+            Text color
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={textColor}
+                onChange={(e) => onTextColorChange(e.target.value)}
+                className="w-8 h-8 rounded cursor-pointer border border-gray-200"
+                title="Message text color"
+              />
+              <span className="font-mono text-gray-400">{textColor}</span>
+            </div>
+          </label>
+        </div>
+        <div
+          className="mt-3 p-2 rounded text-xs"
+          style={{ backgroundColor: bubbleColor, color: textColor }}
+        >
+          Preview: this is how messages will appear.
+        </div>
       </div>
     </div>
   );

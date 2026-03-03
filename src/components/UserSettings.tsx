@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { X, User as UserIcon, Mail, Lock, Save } from 'lucide-react';
+import { X, User as UserIcon, Mail, Lock, Save, Clock } from 'lucide-react';
 
 interface UserSettingsProps {
   user: User;
   onClose: () => void;
+  onOpenHistory?: () => void;
 }
 
-export function UserSettings({ user, onClose }: UserSettingsProps) {
+export function UserSettings({ user, onClose, onOpenHistory }: UserSettingsProps) {
   const [displayName, setDisplayName] = useState(user.user_metadata?.display_name ?? '');
   const [email, setEmail] = useState(user.email ?? '');
   const [newPassword, setNewPassword] = useState('');
@@ -129,6 +130,21 @@ export function UserSettings({ user, onClose }: UserSettingsProps) {
             </div>
           )}
         </div>
+
+        {onOpenHistory && (
+          <div className="px-6 pb-4 pt-2">
+            <button
+              onClick={onOpenHistory}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors text-sm"
+            >
+              <div className="flex items-center gap-2 text-gray-700">
+                <Clock className="w-4 h-4 text-indigo-500" />
+                <span>Conversation History</span>
+              </div>
+              <span className="text-xs text-gray-400">View all past conversations →</span>
+            </button>
+          </div>
+        )}
 
         <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
           <button

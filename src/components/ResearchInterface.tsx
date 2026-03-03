@@ -56,6 +56,13 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
     saved?.systemPrompt2 ?? 'You are a creative AI assistant with expertise in arts and humanities.'
   );
   const [responseDelay, setResponseDelay] = useState<number>(saved?.responseDelay ?? 1);
+  const [delayVariance, setDelayVariance] = useState<boolean>(saved?.delayVariance ?? false);
+  const [maxInteractions, setMaxInteractions] = useState<number>(saved?.maxInteractions ?? 5);
+  const [repetitionCount, setRepetitionCount] = useState<number>(saved?.repetitionCount ?? 1);
+  const [bubbleColor1, setBubbleColor1] = useState<string>(saved?.bubbleColor1 ?? '#EEF2FF');
+  const [bubbleColor2, setBubbleColor2] = useState<string>(saved?.bubbleColor2 ?? '#ECFDF5');
+  const [textColor1, setTextColor1] = useState<string>(saved?.textColor1 ?? '#312E81');
+  const [textColor2, setTextColor2] = useState<string>(saved?.textColor2 ?? '#064E3B');
 
   const [userInput, setUserInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -63,15 +70,24 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   const [errors, setErrors] = useState<string[]>([]);
   const [autoInteract, setAutoInteract] = useState(false);
   const [interactionCount, setInteractionCount] = useState(0);
-  const MAX_INTERACTIONS = 5;
+  const [repetitionCurrent, setRepetitionCurrent] = useState(0);
 
-  // Refs so the recursive auto-interact chain reads the latest values, not stale closures
+  // Refs so async callbacks always read the latest values
   const autoInteractRef = useRef(autoInteract);
-  useEffect(() => { autoInteractRef.current = autoInteract; }, [autoInteract]);
-
+  const maxInteractionsRef = useRef(maxInteractions);
+  const responseDelayRef = useRef(responseDelay);
+  const delayVarianceRef = useRef(delayVariance);
+  const repetitionCountRef = useRef(repetitionCount);
+  const repetitionCurrentRef = useRef(0);
+  const initialChainRef = useRef<{ userMsg: string; allMessages: Message[] } | null>(null);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cancel any pending auto-interact timeout on unmount
+  useEffect(() => { autoInteractRef.current = autoInteract; }, [autoInteract]);
+  useEffect(() => { maxInteractionsRef.current = maxInteractions; }, [maxInteractions]);
+  useEffect(() => { responseDelayRef.current = responseDelay; }, [responseDelay]);
+  useEffect(() => { delayVarianceRef.current = delayVariance; }, [delayVariance]);
+  useEffect(() => { repetitionCountRef.current = repetitionCount; }, [repetitionCount]);
+
   useEffect(() => {
     return () => {
       if (pendingTimeoutRef.current) clearTimeout(pendingTimeoutRef.current);
@@ -84,12 +100,16 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       model1, model2, apiKey1, apiKey2, orgId1, orgId2,
       modelVersion1, modelVersion2, temperature1, temperature2,
       maxTokens1, maxTokens2, botName1, botName2,
-      systemPrompt1, systemPrompt2, responseDelay
+      systemPrompt1, systemPrompt2, responseDelay, delayVariance,
+      maxInteractions, repetitionCount,
+      bubbleColor1, bubbleColor2, textColor1, textColor2
     }));
   }, [model1, model2, apiKey1, apiKey2, orgId1, orgId2,
       modelVersion1, modelVersion2, temperature1, temperature2,
       maxTokens1, maxTokens2, botName1, botName2,
-      systemPrompt1, systemPrompt2, responseDelay]);
+      systemPrompt1, systemPrompt2, responseDelay, delayVariance,
+      maxInteractions, repetitionCount,
+      bubbleColor1, bubbleColor2, textColor1, textColor2]);
 
   const validateConfigs = () => {
     const e1 = validateModelConfig(model1, { apiKey: apiKey1, temperature: temperature1, maxTokens: maxTokens1 });
@@ -100,6 +120,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   };
 
   const saveMessageToDb = (conversationId: string, msg: Message, role: string, modelLabel: string) => {
+    if (msg.hidden) return;
     supabase.from('messages').insert({
       conversation_id: conversationId,
       role,
@@ -112,13 +133,29 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
     });
   };
 
+  const createConversationRecord = async (title: string) => {
+    const { data, error } = await supabase.from('conversations').insert({
+      user_id: user.id,
+      title: title.slice(0, 80) || '(Auto-started conversation)',
+      model1_type: model1, model1_version: modelVersion1,
+      model1_temperature: temperature1, model1_max_tokens: maxTokens1,
+      model2_type: model2, model2_version: modelVersion2,
+      model2_temperature: temperature2, model2_max_tokens: maxTokens2,
+      interaction_limit: maxInteractionsRef.current
+    }).select('id').single();
+
+    if (error) { console.error('Failed to create conversation:', error.message); return null; }
+    return data?.id ?? null;
+  };
+
   const generateAIResponse = useCallback(async (
     config: ChatConfig,
     currentMessages: Message[],
     isFirstAI: boolean,
     conversationId: string | null,
-    currentCount: number
-  ): Promise<Message | null> => {
+    currentCount: number,
+    onChainComplete: () => void
+  ): Promise<void> => {
     try {
       const response = await generateResponse(config, currentMessages);
       setMessages(prev => [...prev, response]);
@@ -127,8 +164,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         saveMessageToDb(conversationId, response, 'assistant', isFirstAI ? botName1 : botName2);
       }
 
-      // Read from ref so toggling auto-interact off mid-chain takes effect immediately
-      if (autoInteractRef.current && currentCount < MAX_INTERACTIONS) {
+      if (autoInteractRef.current && currentCount < maxInteractionsRef.current - 1) {
         const otherConfig: ChatConfig = isFirstAI ? {
           model: model2, apiKey: apiKey2, orgId: orgId2,
           modelVersion: modelVersion2, temperature: temperature2,
@@ -139,106 +175,174 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
           maxTokens: maxTokens1, systemPrompt: systemPrompt1
         };
 
+        // Calculate delay: base + optional length-based variance (prev message word count)
+        const prevWords = response.wordCount ?? 0;
+        const computedDelay = delayVarianceRef.current
+          ? (responseDelayRef.current + prevWords * 0.05) * 1000
+          : responseDelayRef.current * 1000;
+
         pendingTimeoutRef.current = setTimeout(() => {
           setInteractionCount(currentCount + 1);
-          generateAIResponse(otherConfig, [...currentMessages, response], !isFirstAI, conversationId, currentCount + 1);
-        }, responseDelay * 1000);
+          generateAIResponse(otherConfig, [...currentMessages, response], !isFirstAI, conversationId, currentCount + 1, onChainComplete);
+        }, computedDelay);
       } else {
-        setIsLoading(false);
+        onChainComplete();
       }
-
-      return response;
     } catch (error) {
       const msg = error instanceof Error
         ? (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message)
         : 'An unknown error occurred';
       setErrors([msg]);
       setIsLoading(false);
-      return null;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botName1, botName2, model1, model2, apiKey1, apiKey2, orgId1, orgId2,
       modelVersion1, modelVersion2, temperature1, temperature2,
-      maxTokens1, maxTokens2, systemPrompt1, systemPrompt2, responseDelay]);
+      maxTokens1, maxTokens2, systemPrompt1, systemPrompt2]);
+
+  const startChain = useCallback(async (
+    userMsg: string,
+    baseMessages: Message[],
+    repetitionIndex: number
+  ) => {
+    const conversationId = await createConversationRecord(userMsg);
+
+    if (userMsg && conversationId) {
+      const userMessage = baseMessages.find(m => m.role === 'user' && !m.hidden && m.content === userMsg);
+      if (userMessage) {
+        supabase.from('messages').insert({
+          conversation_id: conversationId,
+          role: 'user',
+          model: 'User',
+          content: userMsg,
+          word_count: userMsg.split(/\s+/).filter(Boolean).length
+        }).then(({ error }) => {
+          if (error) console.error('Failed to save user message:', error.message);
+        });
+      }
+    }
+
+    const config1: ChatConfig = {
+      model: model1, apiKey: apiKey1, orgId: orgId1,
+      modelVersion: modelVersion1, temperature: temperature1,
+      maxTokens: maxTokens1, systemPrompt: systemPrompt1
+    };
+
+    const onChainComplete = () => {
+      const nextRepetition = repetitionIndex + 1;
+      if (nextRepetition < repetitionCountRef.current) {
+        repetitionCurrentRef.current = nextRepetition;
+        setRepetitionCurrent(nextRepetition);
+        setInteractionCount(0);
+        // Short pause between repetitions, then start next chain
+        pendingTimeoutRef.current = setTimeout(() => {
+          if (initialChainRef.current) {
+            startChain(initialChainRef.current.userMsg, initialChainRef.current.allMessages, nextRepetition);
+          }
+        }, 1500);
+      } else {
+        setIsLoading(false);
+        setRepetitionCurrent(0);
+        repetitionCurrentRef.current = 0;
+      }
+    };
+
+    await generateAIResponse(config1, baseMessages, true, conversationId, 0, onChainComplete);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [model1, model2, apiKey1, apiKey2, orgId1, orgId2,
+      modelVersion1, modelVersion2, temperature1, temperature2,
+      maxTokens1, maxTokens2, systemPrompt1, systemPrompt2, generateAIResponse]);
 
   const handleSendMessage = async () => {
-    if (!validateConfigs() || !userInput.trim() || isLoading) return;
+    if (!validateConfigs() || isLoading) return;
 
-    // Cancel any in-flight auto-interact chain before starting a new one
     if (pendingTimeoutRef.current) {
       clearTimeout(pendingTimeoutRef.current);
       pendingTimeoutRef.current = null;
     }
 
-    const newUserMessage: Message = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content: userInput.trim(),
-      timestamp: Date.now()
-    };
+    const trimmed = userInput.trim();
+
+    // If no opening message, inject a hidden synthetic user message so the API has a valid turn
+    const newUserMessage: Message = trimmed
+      ? { id: crypto.randomUUID(), role: 'user', content: trimmed, timestamp: Date.now() }
+      : { id: crypto.randomUUID(), role: 'user', content: 'Please begin the conversation based on your instructions.', timestamp: Date.now(), hidden: true };
 
     setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
     setIsLoading(true);
     setInteractionCount(0);
+    setRepetitionCurrent(0);
+    repetitionCurrentRef.current = 0;
     setErrors([]);
 
-    // Create conversation record with title = first 80 chars of user message
-    let conversationId: string | null = null;
-    const { data, error: convErr } = await supabase.from('conversations').insert({
-      user_id: user.id,
-      title: newUserMessage.content.slice(0, 80),
-      model1_type: model1, model1_version: modelVersion1,
-      model1_temperature: temperature1, model1_max_tokens: maxTokens1,
-      model2_type: model2, model2_version: modelVersion2,
-      model2_temperature: temperature2, model2_max_tokens: maxTokens2,
-      interaction_limit: MAX_INTERACTIONS
-    }).select('id').single();
+    const allMessages: Message[] = [
+      { id: 'sys1', role: 'system', content: systemPrompt1, timestamp: Date.now() },
+      ...messages,
+      newUserMessage
+    ];
 
-    if (convErr) {
-      console.error('Failed to create conversation:', convErr.message);
-    } else if (data) {
-      conversationId = data.id;
-      supabase.from('messages').insert({
-        conversation_id: conversationId,
-        role: 'user',
-        model: 'User',
-        content: newUserMessage.content,
-        word_count: newUserMessage.content.split(/\s+/).filter(Boolean).length
-      }).then(({ error }) => {
-        if (error) console.error('Failed to save user message:', error.message);
-      });
-    }
+    initialChainRef.current = { userMsg: trimmed, allMessages };
 
     try {
-      const config1: ChatConfig = {
-        model: model1, apiKey: apiKey1, orgId: orgId1,
-        modelVersion: modelVersion1, temperature: temperature1,
-        maxTokens: maxTokens1, systemPrompt: systemPrompt1
-      };
-
-      const allMessages: Message[] = [
-        { id: 'sys1', role: 'system', content: systemPrompt1, timestamp: Date.now() },
-        ...messages,
-        newUserMessage
-      ];
-
-      await generateAIResponse(config1, allMessages, true, conversationId, 0);
+      await startChain(trimmed, allMessages, 0);
     } catch (error) {
       setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
       setIsLoading(false);
     }
   };
 
-  const handleExport = () => {
-    const lines = messages.map(m => {
-      const label = m.role === 'user' ? 'User' : (m.model === model1 ? botName1 : botName2);
-      return `[${label}]\n${m.content}`;
-    });
+  const handleResetChat = () => {
+    if (pendingTimeoutRef.current) {
+      clearTimeout(pendingTimeoutRef.current);
+      pendingTimeoutRef.current = null;
+    }
+    setMessages([]);
+    setInteractionCount(0);
+    setRepetitionCurrent(0);
+    repetitionCurrentRef.current = 0;
+    setIsLoading(false);
+    setErrors([]);
+    initialChainRef.current = null;
+  };
+
+  const handleExportTxt = () => {
+    const lines = messages
+      .filter(m => m.role !== 'system' && !m.hidden)
+      .map(m => {
+        const label = m.role === 'user' ? 'User' : (m.model === model1 ? botName1 : botName2);
+        return `[${label}]\n${m.content}`;
+      });
     const blob = new Blob([lines.join('\n\n---\n\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `ai2ai-conversation-${Date.now()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCsv = () => {
+    const rows = [['timestamp', 'role', 'speaker', 'content', 'words', 'response_time_ms']];
+    messages
+      .filter(m => m.role !== 'system' && !m.hidden)
+      .forEach(m => {
+        const label = m.role === 'user' ? 'User' : (m.model === model1 ? botName1 : botName2);
+        rows.push([
+          new Date(m.timestamp).toISOString(),
+          m.role,
+          label,
+          `"${m.content.replace(/"/g, '""')}"`,
+          String(m.wordCount ?? ''),
+          String(m.timeTaken ?? '')
+        ]);
+      });
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai2ai-conversation-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -255,7 +359,11 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       />
 
       {showUserSettings && (
-        <UserSettings user={user} onClose={() => setShowUserSettings(false)} />
+        <UserSettings
+          user={user}
+          onClose={() => setShowUserSettings(false)}
+          onOpenHistory={() => { setShowUserSettings(false); setShowHistory(true); }}
+        />
       )}
 
       {showHistory && (
@@ -287,6 +395,10 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
                 onMaxTokensChange={setMaxTokens1}
                 systemPrompt={systemPrompt1}
                 onSystemPromptChange={setSystemPrompt1}
+                bubbleColor={bubbleColor1}
+                onBubbleColorChange={setBubbleColor1}
+                textColor={textColor1}
+                onTextColorChange={setTextColor1}
               />
             </div>
           )}
@@ -302,13 +414,25 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
               autoInteract={autoInteract}
               onAutoInteractChange={setAutoInteract}
               interactionCount={interactionCount}
-              maxInteractions={MAX_INTERACTIONS}
+              maxInteractions={maxInteractions}
+              onMaxInteractionsChange={setMaxInteractions}
               responseDelay={responseDelay}
               onResponseDelayChange={setResponseDelay}
-              onExport={messages.length > 0 ? handleExport : undefined}
+              delayVariance={delayVariance}
+              onDelayVarianceChange={setDelayVariance}
+              repetitionCount={repetitionCount}
+              onRepetitionCountChange={setRepetitionCount}
+              repetitionCurrent={repetitionCurrent}
+              onExportTxt={messages.filter(m => !m.hidden && m.role !== 'system').length > 0 ? handleExportTxt : undefined}
+              onExportCsv={messages.filter(m => !m.hidden && m.role !== 'system').length > 0 ? handleExportCsv : undefined}
+              onResetChat={messages.length > 0 ? handleResetChat : undefined}
               botName1={botName1}
               botName2={botName2}
               model1={model1}
+              bubbleColor1={bubbleColor1}
+              bubbleColor2={bubbleColor2}
+              textColor1={textColor1}
+              textColor2={textColor2}
             />
           </div>
 
@@ -331,6 +455,10 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
                 onMaxTokensChange={setMaxTokens2}
                 systemPrompt={systemPrompt2}
                 onSystemPromptChange={setSystemPrompt2}
+                bubbleColor={bubbleColor2}
+                onBubbleColorChange={setBubbleColor2}
+                textColor={textColor2}
+                onTextColorChange={setTextColor2}
               />
             </div>
           )}

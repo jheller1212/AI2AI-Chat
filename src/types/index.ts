@@ -16,6 +16,7 @@ export interface Message {
   model?: AIModel;
   wordCount?: number;
   timeTaken?: number;
+  hidden?: boolean;
 }
 
 export interface ChatConfig {
