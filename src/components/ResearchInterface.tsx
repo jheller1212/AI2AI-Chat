@@ -169,6 +169,9 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         return { ...m, role: (m.botIndex === myBotIndex ? 'assistant' : 'user') as const };
       });
 
+      const response = await generateResponse(config, remappedMessages);
+      const taggedResponse: Message = { ...response, botIndex: myBotIndex };
+
       setMessages(prev => [...prev, taggedResponse]);
 
       if (conversationId) {
