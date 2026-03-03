@@ -2,9 +2,7 @@
 
 A research tool for running structured conversations between two AI models. Each bot is configured independently — different provider, model, system prompt, and generation parameters — and you watch them talk to each other. Useful for studying how models respond to each other, testing prompt strategies, or collecting dialogue data for research.
 
-[![Deploy to GitHub Pages](https://github.com/JonasHeller1212/AI2AI-Chat/actions/workflows/deploy.yml/badge.svg)](https://github.com/JonasHeller1212/AI2AI-Chat/actions/workflows/deploy.yml)
-
-**Live demo:** https://jonasheller1212.github.io/AI2AI-Chat/
+**Live demo:** https://ai2aichat.netlify.app/
 
 ---
 
@@ -93,22 +91,15 @@ Output goes to `dist/`.
 
 ---
 
-## Deploying to GitHub Pages
+## Deploying to Netlify
 
-The repo includes a GitHub Actions workflow that builds and deploys to GitHub Pages on every push to `main` or `master`.
+Connect the repo to [Netlify](https://netlify.com) and it will build and deploy automatically on every push to `main`. The `netlify.toml` in the repo root handles the build command and SPA routing.
 
 **One-time setup:**
 
-1. In your repo, go to **Settings → Pages** and set the source to **GitHub Actions**.
-2. Go to **Settings → Secrets and variables → Actions** and add two secrets:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-
-After that, any push to main triggers a deploy. The site will be at:
-
-```
-https://<your-username>.github.io/AI2AI-Chat/
-```
+In your Netlify site settings, add two environment variables:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
 
 ---
 
