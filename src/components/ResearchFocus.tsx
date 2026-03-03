@@ -8,32 +8,32 @@ interface FocusPoint {
 
 const focusAreas: FocusPoint[] = [
   {
-    title: "Cognitive Processes",
+    title: "Questions worth asking",
     points: [
-      "Knowledge Transfer: Study how information flows between different AI models",
-      "Reasoning Patterns: Analyze logical processes and problem-solving approaches",
-      "Mental Models: Investigate how AI models build understanding of concepts"
+      "Which model takes the conversational lead — and does it depend on the topic?",
+      "Does rephrasing a system prompt meaningfully change the outcome?",
+      "How do GPT-4 and Claude differ when reasoning through the same ethical dilemma?"
     ],
-    dotColor: "bg-indigo-600"
+    dotColor: "bg-orange-500"
   },
   {
-    title: "Interaction Studies",
+    title: "Controls at your fingertips",
     points: [
-      "Model Comparison: Analyze how different architectures approach similar problems",
-      "Emergent Behavior: Study unexpected patterns in AI-to-AI communication",
-      "Ethics Analysis: Research ethical reasoning and decision-making processes"
+      "Independent system prompts, temperature, and max tokens per model",
+      "Auto-interact with configurable delays and turn limits",
+      "Repetition mode — run the same setup N times for statistical comparison"
     ],
-    dotColor: "bg-emerald-600"
+    dotColor: "bg-sky-500"
   }
 ];
 
 export function ResearchFocus() {
   return (
-    <div className="py-20 bg-gradient-to-r from-indigo-50 to-emerald-50">
+    <div className="py-20 bg-gradient-to-r from-orange-50 to-sky-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Research Focus Areas</h2>
-          <p className="text-lg text-gray-600">Key areas of investigation in AI interaction studies</p>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">What people use it for</h2>
+          <p className="text-lg text-gray-600">From quick curiosity to structured research</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {focusAreas.map((area) => (

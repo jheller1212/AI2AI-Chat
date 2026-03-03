@@ -13,7 +13,7 @@ interface LandingPageProps {
 
 export function LandingPage({ onAuthClick, onSignUpClick, isAuthenticated }: LandingPageProps) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-indigo-50 via-white to-emerald-50">
+    <div className="min-h-screen bg-gradient-to-b from-orange-50 via-white to-sky-50">
       <Navigation onAuthClick={onAuthClick} onSignUpClick={onSignUpClick} isAuthenticated={isAuthenticated} />
       <HeroSection onSignUpClick={onSignUpClick} />
       <ResearchAreas />
