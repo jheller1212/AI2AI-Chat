@@ -79,7 +79,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   const delayVarianceRef = useRef(delayVariance);
   const repetitionCountRef = useRef(repetitionCount);
   const repetitionCurrentRef = useRef(0);
-  const initialChainRef = useRef<{ userMsg: string; allMessages: Message[] } | null>(null);
+  const initialChainRef = useRef<{ userMsg: string; allMessages: Message[]; localConversationId: string } | null>(null);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { autoInteractRef.current = autoInteract; }, [autoInteract]);
@@ -133,8 +133,9 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
     });
   };
 
-  const createConversationRecord = async (title: string) => {
+  const createConversationRecord = async (title: string, id: string) => {
     const { data, error } = await supabase.from('conversations').insert({
+      id,
       user_id: user.id,
       title: title.slice(0, 80) || '(Auto-started conversation)',
       model1_type: model1, model1_version: modelVersion1,
@@ -144,7 +145,11 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       interaction_limit: maxInteractionsRef.current
     }).select('id').single();
 
-    if (error) { console.error('Failed to create conversation:', error.message); return null; }
+    if (error) {
+      console.error('Failed to create conversation:', error.message);
+      setErrors(prev => [...prev, `History unavailable: ${error.message}`]);
+      return null;
+    }
     return data?.id ?? null;
   };
 
@@ -152,7 +157,8 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
     config: ChatConfig,
     currentMessages: Message[],
     isFirstAI: boolean,
-    conversationId: string | null,
+    dbConversationId: string | null,
+    localConversationId: string,
     currentCount: number,
     onChainComplete: () => void
   ): Promise<void> => {
@@ -176,13 +182,13 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         modelVersion: config.modelVersion,
         temperature: config.temperature,
         systemPrompt: config.systemPrompt,
-        conversationId: conversationId ?? undefined,
+        conversationId: localConversationId,
       };
 
       setMessages(prev => [...prev, taggedResponse]);
 
-      if (conversationId) {
-        saveMessageToDb(conversationId, taggedResponse, 'assistant', isFirstAI ? botName1 : botName2);
+      if (dbConversationId) {
+        saveMessageToDb(dbConversationId, taggedResponse, 'assistant', isFirstAI ? botName1 : botName2);
       }
 
       if (autoInteractRef.current && currentCount < maxInteractionsRef.current - 1) {
@@ -205,7 +211,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         pendingTimeoutRef.current = setTimeout(() => {
           setInteractionCount(currentCount + 1);
           // Pass original currentMessages + tagged response; remapping happens at next call
-          generateAIResponse(otherConfig, [...currentMessages, taggedResponse], !isFirstAI, conversationId, currentCount + 1, onChainComplete);
+          generateAIResponse(otherConfig, [...currentMessages, taggedResponse], !isFirstAI, dbConversationId, localConversationId, currentCount + 1, onChainComplete);
         }, computedDelay);
       } else {
         onChainComplete();
@@ -225,15 +231,16 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   const startChain = useCallback(async (
     userMsg: string,
     baseMessages: Message[],
-    repetitionIndex: number
+    repetitionIndex: number,
+    localConversationId: string
   ) => {
-    const conversationId = await createConversationRecord(userMsg);
+    const dbConversationId = await createConversationRecord(userMsg, localConversationId);
 
-    if (userMsg && conversationId) {
+    if (userMsg && dbConversationId) {
       const userMessage = baseMessages.find(m => m.role === 'user' && !m.hidden && m.content === userMsg);
       if (userMessage) {
         supabase.from('messages').insert({
-          conversation_id: conversationId,
+          conversation_id: dbConversationId,
           role: 'user',
           model: 'User',
           content: userMsg,
@@ -259,7 +266,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         // Short pause between repetitions, then start next chain
         pendingTimeoutRef.current = setTimeout(() => {
           if (initialChainRef.current) {
-            startChain(initialChainRef.current.userMsg, initialChainRef.current.allMessages, nextRepetition);
+            startChain(initialChainRef.current.userMsg, initialChainRef.current.allMessages, nextRepetition, initialChainRef.current.localConversationId);
           }
         }, 1500);
       } else {
@@ -269,7 +276,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       }
     };
 
-    await generateAIResponse(config1, baseMessages, true, conversationId, 0, onChainComplete);
+    await generateAIResponse(config1, baseMessages, true, dbConversationId, localConversationId, 0, onChainComplete);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model1, model2, apiKey1, apiKey2, orgId1, orgId2,
       modelVersion1, modelVersion2, temperature1, temperature2,
@@ -304,10 +311,11 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       newUserMessage
     ];
 
-    initialChainRef.current = { userMsg: trimmed, allMessages };
+    const localConversationId = crypto.randomUUID();
+    initialChainRef.current = { userMsg: trimmed, allMessages, localConversationId };
 
     try {
-      await startChain(trimmed, allMessages, 0);
+      await startChain(trimmed, allMessages, 0, localConversationId);
     } catch (error) {
       setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
       setIsLoading(false);
