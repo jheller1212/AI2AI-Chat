@@ -57,7 +57,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   );
   const [responseDelay, setResponseDelay] = useState<number>(saved?.responseDelay ?? 1);
   const [delayVariance, setDelayVariance] = useState<boolean>(saved?.delayVariance ?? false);
-  const [maxInteractions, setMaxInteractions] = useState<number>(saved?.maxInteractions ?? 5);
+  const [maxInteractions, setMaxInteractions] = useState<number>(saved?.maxInteractions ?? 10);
   const [repetitionCount, setRepetitionCount] = useState<number>(saved?.repetitionCount ?? 1);
   const [bubbleColor1, setBubbleColor1] = useState<string>(saved?.bubbleColor1 ?? '#EEF2FF');
   const [bubbleColor2, setBubbleColor2] = useState<string>(saved?.bubbleColor2 ?? '#ECFDF5');
@@ -68,7 +68,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-  const [autoInteract, setAutoInteract] = useState(false);
+  const [autoInteract, setAutoInteract] = useState(saved?.autoInteract ?? true);
   const [interactionCount, setInteractionCount] = useState(0);
   const [repetitionCurrent, setRepetitionCurrent] = useState(0);
 
@@ -101,14 +101,14 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       modelVersion1, modelVersion2, temperature1, temperature2,
       maxTokens1, maxTokens2, botName1, botName2,
       systemPrompt1, systemPrompt2, responseDelay, delayVariance,
-      maxInteractions, repetitionCount,
+      autoInteract, maxInteractions, repetitionCount,
       bubbleColor1, bubbleColor2, textColor1, textColor2
     }));
   }, [model1, model2, apiKey1, apiKey2, orgId1, orgId2,
       modelVersion1, modelVersion2, temperature1, temperature2,
       maxTokens1, maxTokens2, botName1, botName2,
       systemPrompt1, systemPrompt2, responseDelay, delayVariance,
-      maxInteractions, repetitionCount,
+      autoInteract, maxInteractions, repetitionCount,
       bubbleColor1, bubbleColor2, textColor1, textColor2]);
 
   const validateConfigs = () => {

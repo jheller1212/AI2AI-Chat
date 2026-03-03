@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Send, Download, Camera, RotateCcw, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { ConversationDisplay } from './ConversationDisplay';
+import { InfoTooltip } from './InfoTooltip';
 import { Message } from '../types';
 
 interface ChatPanelProps {
@@ -219,6 +220,7 @@ export function ChatPanel({
               className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
             />
             Auto-interact
+            <InfoTooltip text="When enabled, the two AIs automatically take turns responding to each other up to the max turns limit. Disable to trigger each response manually." />
           </label>
 
           {autoInteract && (
@@ -235,6 +237,7 @@ export function ChatPanel({
                   onChange={(e) => onMaxInteractionsChange(Math.max(1, Number(e.target.value)))}
                   className="w-14 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
+                <InfoTooltip text="Total number of AI responses per conversation run. Each bot speaks once every two turns, so 10 turns = 5 exchanges." />
               </label>
 
               {/* Delay slider */}
@@ -250,10 +253,11 @@ export function ChatPanel({
                   className="w-24 accent-indigo-600"
                 />
                 <span className="tabular-nums w-10 text-right">{responseDelay}s</span>
+                <InfoTooltip text="Fixed pause (in seconds) between each AI response. Useful for pacing the conversation or staying within API rate limits." />
               </label>
 
               {/* Length-based variance */}
-              <label className="flex items-center gap-2 cursor-pointer" title="Adds extra delay proportional to message length (simulates reading time)">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={delayVariance}
@@ -261,6 +265,7 @@ export function ChatPanel({
                   className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
                 <span className="text-gray-500">Length-based delay</span>
+                <InfoTooltip text="Adds extra delay proportional to the length of each message (approx. 0.05 s per word), simulating the time a human would take to read it." />
               </label>
 
               {/* Repetitions */}
@@ -276,6 +281,7 @@ export function ChatPanel({
                   className="w-14 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
                 <span className="text-gray-500">conversations</span>
+                <InfoTooltip text="Run the same conversation from scratch this many times. Useful for generating multiple varied responses to the same opening prompt." />
               </label>
             </>
           )}

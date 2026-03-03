@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bot } from 'lucide-react';
 import { ModelConfig } from './ModelConfig';
+import { InfoTooltip } from './InfoTooltip';
 import { AIModel } from '../types';
 
 interface AIConfigPanelProps {
@@ -80,7 +81,10 @@ export function AIConfigPanel({
         onMaxTokensChange={onMaxTokensChange}
       />
       <div className="mt-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">System Prompt</label>
+        <div className="flex items-center gap-1.5 mb-2">
+          <label className="text-sm font-medium text-gray-700">System Prompt</label>
+          <InfoTooltip text="Instructions given to this AI at the start of every conversation. Use it to define the bot's persona, expertise, communication style, and any rules it should follow." />
+        </div>
         <textarea
           value={systemPrompt}
           onChange={(e) => onSystemPromptChange(e.target.value)}

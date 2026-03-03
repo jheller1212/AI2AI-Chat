@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AIModel } from '../types';
 import { Info } from 'lucide-react';
 import { ApiKeyInstructions } from './ApiKeyInstructions';
+import { InfoTooltip } from './InfoTooltip';
 
 interface ModelConfigProps {
   label: string;
@@ -170,7 +171,10 @@ export function ModelConfig({
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Temperature ({temperature})</label>
+        <div className="flex items-center gap-1.5">
+          <label className="text-sm font-medium text-gray-700">Temperature ({temperature})</label>
+          <InfoTooltip text="Controls how random the AI's output is. 0 = deterministic and focused (always picks the most likely word). Higher values produce more varied, creative responses. Values above 1 can become incoherent." />
+        </div>
         <input
           type="range"
           min="0"
@@ -188,7 +192,10 @@ export function ModelConfig({
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Max Tokens (max: {currentMax.toLocaleString()})</label>
+        <div className="flex items-center gap-1.5">
+          <label className="text-sm font-medium text-gray-700">Max Tokens (max: {currentMax.toLocaleString()})</label>
+          <InfoTooltip text="The maximum number of tokens (roughly ¾ of a word each) the AI can generate per response. Higher values allow longer replies but cost more and take longer. Keep it lower to get concise answers." />
+        </div>
         <input
           type="number"
           min="1"
