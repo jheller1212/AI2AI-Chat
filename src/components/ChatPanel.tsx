@@ -97,7 +97,7 @@ export function ChatPanel({
   const hasMessages = onExportTxt != null;
 
   return (
-    <div className="flex-1 bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
+    <div className="flex-1 min-h-0 bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
         <div className="flex items-center gap-3 text-sm text-gray-600">

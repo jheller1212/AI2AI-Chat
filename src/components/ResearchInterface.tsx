@@ -360,7 +360,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="h-screen bg-gray-100 flex flex-col overflow-hidden">
       <Header
         onBack={onBack}
         onSignOut={onSignOut}
@@ -386,10 +386,10 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
         />
       )}
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-6">
+      <main className="flex-1 min-h-0 w-full px-4 sm:px-6 lg:px-8 py-6 overflow-hidden">
+        <div className="flex gap-4 h-full min-h-0">
           {showSettings && (
-            <div className="hidden lg:block w-96 flex-shrink-0">
+            <div className="hidden lg:flex lg:flex-col w-88 flex-shrink-0 overflow-y-auto" style={{ width: '22rem' }}>
               <AIConfigPanel
                 title={botName1}
                 onTitleChange={setBotName1}
@@ -415,7 +415,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
             </div>
           )}
 
-          <div className="flex-1 flex flex-col gap-4 min-w-0">
+          <div className="flex-1 flex flex-col gap-3 min-w-0 min-h-0">
             <ErrorDisplay errors={errors} onClear={() => setErrors([])} />
             <ChatPanel
               messages={messages}
@@ -449,7 +449,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
           </div>
 
           {showSettings && (
-            <div className="hidden lg:block w-96 flex-shrink-0">
+            <div className="hidden lg:flex lg:flex-col flex-shrink-0 overflow-y-auto" style={{ width: '22rem' }}>
               <AIConfigPanel
                 title={botName2}
                 onTitleChange={setBotName2}
