@@ -24,6 +24,8 @@ interface ChatPanelProps {
   repetitionCount: number;
   onRepetitionCountChange: (n: number) => void;
   repetitionCurrent: number;
+  saveHistory: boolean;
+  onSaveHistoryChange: (v: boolean) => void;
   onExportTxt?: () => void;
   onExportCsv?: () => void;
   onResetChat?: () => void;
@@ -54,6 +56,8 @@ export function ChatPanel({
   repetitionCount,
   onRepetitionCountChange,
   repetitionCurrent,
+  saveHistory,
+  onSaveHistoryChange,
   onExportTxt,
   onExportCsv,
   onResetChat,
@@ -335,6 +339,18 @@ export function ChatPanel({
               </label>
             </>
           )}
+
+          {/* Save to history toggle */}
+          <label className="flex items-center gap-2 cursor-pointer ml-auto">
+            <input
+              type="checkbox"
+              checked={saveHistory}
+              onChange={(e) => onSaveHistoryChange(e.target.checked)}
+              className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span className="text-gray-500">Save to history</span>
+            <InfoTooltip text="When disabled, this conversation is not written to the database. Nothing is stored server-side — useful for sensitive research data or private experiments." />
+          </label>
         </div>
       </div>
     </div>

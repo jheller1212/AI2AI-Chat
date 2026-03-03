@@ -69,6 +69,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
   const [autoInteract, setAutoInteract] = useState(saved?.autoInteract ?? true);
+  const [saveHistory, setSaveHistory] = useState<boolean>(saved?.saveHistory ?? true);
   const [interactionCount, setInteractionCount] = useState(0);
   const [repetitionCurrent, setRepetitionCurrent] = useState(0);
 
@@ -102,14 +103,14 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       modelVersion1, modelVersion2, temperature1, temperature2,
       maxTokens1, maxTokens2, botName1, botName2,
       systemPrompt1, systemPrompt2, responseDelay, delayVariance,
-      autoInteract, maxInteractions, repetitionCount,
+      autoInteract, maxInteractions, repetitionCount, saveHistory,
       bubbleColor1, bubbleColor2, textColor1, textColor2
     }));
   }, [model1, model2, apiKey1, apiKey2, orgId1, orgId2,
       modelVersion1, modelVersion2, temperature1, temperature2,
       maxTokens1, maxTokens2, botName1, botName2,
       systemPrompt1, systemPrompt2, responseDelay, delayVariance,
-      autoInteract, maxInteractions, repetitionCount,
+      autoInteract, maxInteractions, repetitionCount, saveHistory,
       bubbleColor1, bubbleColor2, textColor1, textColor2]);
 
   const validateConfigs = () => {
@@ -121,7 +122,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   };
 
   const saveMessageToDb = (conversationId: string, msg: Message, role: string, modelLabel: string) => {
-    if (msg.hidden) return;
+    if (msg.hidden || !saveHistory) return;
     supabase.from('messages').insert({
       conversation_id: conversationId,
       role,
@@ -135,6 +136,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   };
 
   const createConversationRecord = async (title: string, id: string) => {
+    if (!saveHistory) return id; // skip DB; return id so downstream code is unaffected
     const { data, error } = await supabase.from('conversations').insert({
       id,
       user_id: user.id,
@@ -488,6 +490,8 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
               onExportCsv={messages.filter(m => !m.hidden && m.role !== 'system').length > 0 ? handleExportCsv : undefined}
               onResetChat={messages.length > 0 ? handleResetChat : undefined}
               onStop={isLoading ? handleStop : undefined}
+              saveHistory={saveHistory}
+              onSaveHistoryChange={setSaveHistory}
               botName1={botName1}
               botName2={botName2}
               bubbleColor1={bubbleColor1}
