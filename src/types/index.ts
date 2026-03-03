@@ -17,6 +17,7 @@ export interface Message {
   wordCount?: number;
   timeTaken?: number;
   hidden?: boolean;
+  botIndex?: 1 | 2;
 }
 
 export interface ChatConfig {

@@ -157,11 +157,22 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
     onChainComplete: () => void
   ): Promise<void> => {
     try {
-      const response = await generateResponse(config, currentMessages);
-      setMessages(prev => [...prev, response]);
+      const myBotIndex: 1 | 2 = isFirstAI ? 1 : 2;
+
+      // Remap roles from this bot's perspective:
+      // - This bot's own previous messages stay as 'assistant'
+      // - The other bot's messages become 'user' (it is speaking TO this bot)
+      // This ensures the conversation always ends with a 'user' message for APIs
+      // that require strict user/assistant alternation (e.g. Anthropic Claude).
+      const remappedMessages = currentMessages.map(m => {
+        if (m.role !== 'assistant') return m;
+        return { ...m, role: (m.botIndex === myBotIndex ? 'assistant' : 'user') as const };
+      });
+
+      setMessages(prev => [...prev, taggedResponse]);
 
       if (conversationId) {
-        saveMessageToDb(conversationId, response, 'assistant', isFirstAI ? botName1 : botName2);
+        saveMessageToDb(conversationId, taggedResponse, 'assistant', isFirstAI ? botName1 : botName2);
       }
 
       if (autoInteractRef.current && currentCount < maxInteractionsRef.current - 1) {
@@ -175,15 +186,16 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
           maxTokens: maxTokens1, systemPrompt: systemPrompt1
         };
 
-        // Calculate delay: base + optional length-based variance (prev message word count)
-        const prevWords = response.wordCount ?? 0;
+        // Calculate delay: base + optional length-based variance (reading time estimate)
+        const prevWords = taggedResponse.wordCount ?? 0;
         const computedDelay = delayVarianceRef.current
           ? (responseDelayRef.current + prevWords * 0.05) * 1000
           : responseDelayRef.current * 1000;
 
         pendingTimeoutRef.current = setTimeout(() => {
           setInteractionCount(currentCount + 1);
-          generateAIResponse(otherConfig, [...currentMessages, response], !isFirstAI, conversationId, currentCount + 1, onChainComplete);
+          // Pass original currentMessages + tagged response; remapping happens at next call
+          generateAIResponse(otherConfig, [...currentMessages, taggedResponse], !isFirstAI, conversationId, currentCount + 1, onChainComplete);
         }, computedDelay);
       } else {
         onChainComplete();
