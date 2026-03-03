@@ -170,7 +170,14 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
       });
 
       const response = await generateResponse(config, remappedMessages);
-      const taggedResponse: Message = { ...response, botIndex: myBotIndex };
+      const taggedResponse: Message = {
+        ...response,
+        botIndex: myBotIndex,
+        modelVersion: config.modelVersion,
+        temperature: config.temperature,
+        systemPrompt: config.systemPrompt,
+        conversationId: conversationId ?? undefined,
+      };
 
       setMessages(prev => [...prev, taggedResponse]);
 
@@ -325,7 +332,7 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
     const lines = messages
       .filter(m => m.role !== 'system' && !m.hidden)
       .map(m => {
-        const label = m.role === 'user' ? 'User' : (m.model === model1 ? botName1 : botName2);
+        const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? botName1 : botName2);
         return `[${label}]\n${m.content}`;
       });
     const blob = new Blob([lines.join('\n\n---\n\n')], { type: 'text/plain' });
@@ -338,15 +345,22 @@ export function ResearchInterface({ onSignOut, onBack, user }: ResearchInterface
   };
 
   const handleExportCsv = () => {
-    const rows = [['timestamp', 'role', 'speaker', 'content', 'words', 'response_time_ms']];
+    const rows = [['conversation_id', 'timestamp', 'sender', 'prompt', 'model', 'temperature', 'role', 'content', 'words', 'response_time_ms']];
     messages
       .filter(m => m.role !== 'system' && !m.hidden)
       .forEach(m => {
-        const label = m.role === 'user' ? 'User' : (m.model === model1 ? botName1 : botName2);
+        const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? botName1 : botName2);
+        const fallbackPrompt = m.botIndex === 1 ? systemPrompt1 : m.botIndex === 2 ? systemPrompt2 : '';
+        const fallbackModel = m.botIndex === 1 ? modelVersion1 : m.botIndex === 2 ? modelVersion2 : '';
+        const fallbackTemp = m.botIndex === 1 ? temperature1 : m.botIndex === 2 ? temperature2 : '';
         rows.push([
+          m.conversationId ?? '',
           new Date(m.timestamp).toISOString(),
-          m.role,
           label,
+          `"${(m.systemPrompt ?? fallbackPrompt).replace(/"/g, '""')}"`,
+          m.modelVersion ?? fallbackModel,
+          String(m.temperature ?? fallbackTemp),
+          m.role,
           `"${m.content.replace(/"/g, '""')}"`,
           String(m.wordCount ?? ''),
           String(m.timeTaken ?? '')
