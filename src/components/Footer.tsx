@@ -1,7 +1,12 @@
 import React from 'react';
 import { Bot, FlaskConical, Mail } from 'lucide-react';
 
-export function Footer() {
+interface FooterProps {
+  onPrivacyClick: () => void;
+  onTermsClick: () => void;
+}
+
+export function Footer({ onPrivacyClick, onTermsClick }: FooterProps) {
   return (
     <footer className="bg-gray-900 text-gray-400">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -43,6 +48,18 @@ export function Footer() {
             >
               FAQ
             </a>
+            <button
+              onClick={onPrivacyClick}
+              className="text-left hover:text-orange-400 transition-colors"
+            >
+              Privacy Policy
+            </button>
+            <button
+              onClick={onTermsClick}
+              className="text-left hover:text-orange-400 transition-colors"
+            >
+              Terms of Use
+            </button>
           </div>
         </div>
 

@@ -11,9 +11,11 @@ interface LandingPageProps {
   onAuthClick: () => void;
   onSignUpClick: () => void;
   isAuthenticated: boolean;
+  onPrivacyClick: () => void;
+  onTermsClick: () => void;
 }
 
-export function LandingPage({ onAuthClick, onSignUpClick, isAuthenticated }: LandingPageProps) {
+export function LandingPage({ onAuthClick, onSignUpClick, isAuthenticated, onPrivacyClick, onTermsClick }: LandingPageProps) {
   return (
     <div className="bg-gradient-to-b from-orange-50 via-white to-sky-50">
       <Navigation onAuthClick={onAuthClick} onSignUpClick={onSignUpClick} isAuthenticated={isAuthenticated} />
@@ -24,7 +26,7 @@ export function LandingPage({ onAuthClick, onSignUpClick, isAuthenticated }: Lan
         <FAQ />
       </div>
       <AcademicCTA onSignUpClick={onSignUpClick} />
-      <Footer />
+      <Footer onPrivacyClick={onPrivacyClick} onTermsClick={onTermsClick} />
     </div>
   );
 }
