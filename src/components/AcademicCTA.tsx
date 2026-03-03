@@ -6,10 +6,10 @@ interface AcademicCTAProps {
 
 export function AcademicCTA({ onSignUpClick }: AcademicCTAProps) {
   return (
-    <div className="py-20 bg-white">
+    <div className="py-10 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to try it?</h2>
-        <p className="text-lg text-gray-600 mb-8">
+        <h2 className="text-3xl font-bold text-gray-900 mb-3">Ready to try it?</h2>
+        <p className="text-gray-600 mb-6">
           Free to use. Bring your own API keys from OpenAI, Anthropic, Google, or Mistral.
         </p>
         <button
@@ -18,10 +18,6 @@ export function AcademicCTA({ onSignUpClick }: AcademicCTAProps) {
         >
           Create free account
         </button>
-        <p className="mt-8 text-sm text-gray-400 max-w-lg mx-auto">
-          Conversations are stored in our database so you can review them later.
-          You can disable this per session in the app. API keys never leave your browser.
-        </p>
       </div>
     </div>
   );

@@ -1,0 +1,56 @@
+import React from 'react';
+import { Bot, FlaskConical, Mail } from 'lucide-react';
+
+export function Footer() {
+  return (
+    <footer className="bg-gray-900 text-gray-400">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="flex flex-col md:flex-row items-start justify-between gap-8">
+
+          {/* Brand */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <FlaskConical className="h-6 w-6 text-orange-400" />
+                <Bot className="h-3 w-3 text-sky-400 absolute -bottom-0.5 -right-0.5" />
+              </div>
+              <span className="text-white font-bold text-lg">AI2AI-Chat</span>
+            </div>
+            <p className="text-sm max-w-xs">
+              A free tool for studying AI-to-AI conversations. Bring your own API keys.
+            </p>
+            <p className="text-xs text-gray-500">
+              API keys are stored in your browser only and never reach our servers.
+            </p>
+          </div>
+
+          {/* Links */}
+          <div className="flex flex-col gap-3 text-sm">
+            <a
+              href="mailto:hello@ai2ai-chat.com"
+              className="flex items-center gap-2 hover:text-orange-400 transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+              hello@ai2ai-chat.com
+            </a>
+            <a
+              href="#faq"
+              className="hover:text-orange-400 transition-colors"
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById('faq')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              FAQ
+            </a>
+          </div>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
+          <span>© {new Date().getFullYear()} AI2AI-Chat · All rights reserved</span>
+          <span>Conversations stored with Supabase · Not affiliated with OpenAI, Anthropic, Google, or Mistral</span>
+        </div>
+      </div>
+    </footer>
+  );
+}

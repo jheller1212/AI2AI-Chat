@@ -6,16 +6,16 @@ interface HeroSectionProps {
 
 export function HeroSection({ onSignUpClick }: HeroSectionProps) {
   return (
-    <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+    <div className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">
+          <h1 className="text-5xl font-bold text-gray-900 mb-4">
             Two AI models.{' '}
             <span className="bg-gradient-to-r from-orange-500 to-sky-500 text-transparent bg-clip-text">
               One conversation.
             </span>
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-gray-600 mb-6 max-w-2xl mx-auto">
             Configure two AI models — GPT, Claude, Gemini, or Mistral — each with their own
             system prompt and settings, then let them talk. Set turn counts, delays, and
             repetitions. Export everything as CSV.
