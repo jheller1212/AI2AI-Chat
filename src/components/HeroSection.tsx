@@ -1,10 +1,10 @@
 import React from 'react';
 
 interface HeroSectionProps {
-  onAuthClick: () => void;
+  onSignUpClick: () => void;
 }
 
-export function HeroSection({ onAuthClick }: HeroSectionProps) {
+export function HeroSection({ onSignUpClick }: HeroSectionProps) {
   return (
     <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
@@ -20,10 +20,10 @@ export function HeroSection({ onAuthClick }: HeroSectionProps) {
             A dedicated academic research platform for studying AI model interactions, cognitive processes, and emergent behaviors in controlled environments.
           </p>
           <button
-            onClick={onAuthClick}
+            onClick={onSignUpClick}
             className="px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-indigo-600 to-emerald-500 rounded-lg hover:from-indigo-500 hover:to-emerald-400 shadow-lg hover:shadow-xl transition-all"
           >
-            Start Academic Research
+            Create Free Account
           </button>
         </div>
       </div>

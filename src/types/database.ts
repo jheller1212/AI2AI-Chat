@@ -13,6 +13,7 @@ export interface Database {
         Row: {
           id: string
           user_id: string
+          title: string | null
           model1_type: string
           model1_version: string
           model1_temperature: number
@@ -27,6 +28,7 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
+          title?: string | null
           model1_type: string
           model1_version: string
           model1_temperature: number
@@ -41,6 +43,7 @@ export interface Database {
         Update: {
           id?: string
           user_id?: string
+          title?: string | null
           model1_type?: string
           model1_version?: string
           model1_temperature?: number
@@ -57,6 +60,7 @@ export interface Database {
         Row: {
           id: string
           conversation_id: string
+          role: string
           model: string
           content: string
           word_count: number
@@ -66,15 +70,17 @@ export interface Database {
         Insert: {
           id?: string
           conversation_id: string
-          model: string
+          role?: string
+          model?: string
           content: string
-          word_count: number
-          time_taken: number
+          word_count?: number
+          time_taken?: number
           created_at?: string
         }
         Update: {
           id?: string
           conversation_id?: string
+          role?: string
           model?: string
           content?: string
           word_count?: number

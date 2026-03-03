@@ -16,9 +16,10 @@ export function ModelSelector({ label, value, onChange }: ModelSelectorProps) {
         onChange={(e) => onChange(e.target.value as AIModel)}
         className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
       >
-        <option value="gpt4">GPT-4</option>
-        <option value="claude">Claude</option>
-        <option value="deepseek">DeepSeek</option>
+        <option value="gpt4">GPT-4 (OpenAI)</option>
+        <option value="claude">Claude (Anthropic)</option>
+        <option value="gemini">Gemini (Google)</option>
+        <option value="mistral">Mistral</option>
       </select>
     </div>
   );

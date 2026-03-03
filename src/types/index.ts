@@ -1,4 +1,4 @@
-export type AIModel = 'gpt4';
+export type AIModel = 'gpt4' | 'claude' | 'gemini' | 'mistral';
 
 export interface ModelConfig {
   apiKey: string;

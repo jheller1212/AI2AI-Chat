@@ -1,44 +1,44 @@
 import { APIProvider, APIConfig, APIResponse } from '../types';
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export class OpenAIProvider implements APIProvider {
   async makeRequest(config: APIConfig, messages: Array<{role: string; content: string}>): Promise<APIResponse> {
-    console.log('Making OpenAI API request:', {
-      model: config.model,
-      messages: messages.length,
-      temperature: config.temperature,
-      maxTokens: config.maxTokens
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-        ...(config.orgId ? { 'OpenAI-Organization': config.orgId } : {})
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        temperature: config.temperature,
-        max_tokens: config.maxTokens
-      })
-    });
+    let response: Response;
+    try {
+      response = await fetch('https://api.openai.com/v1/chat/completions', {
+        signal: controller.signal,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${config.apiKey}`,
+          ...(config.orgId ? { 'OpenAI-Organization': config.orgId } : {})
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages,
+          temperature: config.temperature,
+          max_tokens: config.maxTokens
+        })
+      });
+    } finally {
+      clearTimeout(timer);
+    }
 
     if (!response.ok) {
-      const error = await response.json();
-      console.error('OpenAI API Error:', error);
-      throw new Error(error.error?.message || 'OpenAI API request failed');
+      const body = await response.text();
+      let message = 'OpenAI API request failed';
+      try { message = JSON.parse(body).error?.message ?? message; } catch { /* non-JSON body */ }
+      throw new Error(message);
     }
 
     const data = await response.json();
-    console.log('OpenAI API Response:', {
-      content: data.choices[0].message.content.substring(0, 50) + '...',
-      usage: data.usage
-    });
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== 'string') throw new Error('Unexpected response format from OpenAI');
 
-    return {
-      content: data.choices[0].message.content,
-      usage: data.usage
-    };
+    return { content, usage: data.usage };
   }
 }

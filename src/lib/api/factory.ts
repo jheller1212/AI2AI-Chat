@@ -15,10 +15,6 @@ export function createProvider(model: AIModel): APIProvider {
       return new MistralProvider();
     case 'gemini':
       return new GeminiProvider();
-    case 'llama':
-      throw new Error('Llama integration is currently under maintenance. Please try another model.');
-    case 'deepseek':
-      throw new Error('DeepSeek integration is currently under maintenance. Please try another model.');
     default:
       throw new Error(`Unsupported model: ${model}`);
   }

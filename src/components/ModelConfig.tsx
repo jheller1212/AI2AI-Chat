@@ -20,22 +20,60 @@ interface ModelConfigProps {
   disabled?: boolean;
 }
 
-const MODEL_VERSIONS = [
-  // GPT-4 Models
-  { id: 'gpt-4-0125-preview', name: 'GPT-4 Turbo Preview', maxTokens: 128000 },
-  { id: 'gpt-4-1106-preview', name: 'GPT-4 Turbo (Latest)', maxTokens: 128000 },
-  { id: 'gpt-4', name: 'GPT-4', maxTokens: 8192 },
-  { id: 'gpt-4-32k', name: 'GPT-4 32K', maxTokens: 32768 },
-  // GPT-3.5 Models
-  { id: 'gpt-3.5-turbo-0125', name: 'GPT-3.5 Turbo (Latest)', maxTokens: 16384 },
-  { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', maxTokens: 4096 },
-  { id: 'gpt-3.5-turbo-16k', name: 'GPT-3.5 Turbo 16K', maxTokens: 16384 }
-];
+const PROVIDER_MODELS: Record<AIModel, { id: string; name: string; maxTokens: number }[]> = {
+  gpt4: [
+    { id: 'gpt-4o', name: 'GPT-4o', maxTokens: 128000 },
+    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', maxTokens: 128000 },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', maxTokens: 128000 },
+    { id: 'gpt-4', name: 'GPT-4', maxTokens: 8192 },
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', maxTokens: 16384 },
+  ],
+  claude: [
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Latest)', maxTokens: 16000 },
+    { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', maxTokens: 16000 },
+    { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', maxTokens: 16000 },
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', maxTokens: 8192 },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', maxTokens: 8192 },
+    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', maxTokens: 4096 },
+  ],
+  gemini: [
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', maxTokens: 8192 },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', maxTokens: 8192 },
+    { id: 'gemini-pro', name: 'Gemini Pro', maxTokens: 2048 },
+  ],
+  mistral: [
+    { id: 'mistral-large-latest', name: 'Mistral Large', maxTokens: 4096 },
+    { id: 'mistral-medium-latest', name: 'Mistral Medium', maxTokens: 4096 },
+    { id: 'mistral-small-latest', name: 'Mistral Small', maxTokens: 4096 },
+    { id: 'open-mistral-7b', name: 'Mistral 7B (Open)', maxTokens: 4096 },
+  ],
+};
+
+const PROVIDER_LABELS: Record<AIModel, string> = {
+  gpt4: 'OpenAI',
+  claude: 'Anthropic Claude',
+  gemini: 'Google Gemini',
+  mistral: 'Mistral',
+};
+
+const API_KEY_PLACEHOLDERS: Record<AIModel, string> = {
+  gpt4: 'sk-...',
+  claude: 'sk-ant-...',
+  gemini: 'AIza...',
+  mistral: 'Your Mistral API key',
+};
+
+const API_KEY_INSTRUCTIONS: Record<AIModel, string> = {
+  gpt4: '1. Go to platform.openai.com\n2. Sign in / create account\n3. Go to API keys\n4. Create new secret key',
+  claude: '1. Go to console.anthropic.com\n2. Sign in / create account\n3. Go to API keys\n4. Create new key',
+  gemini: '1. Go to aistudio.google.com\n2. Sign in with Google\n3. Click "Get API key"\n4. Create API key',
+  mistral: '1. Go to console.mistral.ai\n2. Sign in / create account\n3. Go to API keys\n4. Create new key',
+};
 
 export function ModelConfig({
   label: _label,
-  model: _model,
-  onModelChange: _onModelChange,
+  model,
+  onModelChange,
   apiKey,
   onApiKeyChange,
   orgId,
@@ -50,19 +88,43 @@ export function ModelConfig({
 }: ModelConfigProps) {
   const [showInstructions, setShowInstructions] = useState(false);
 
+  const versions = PROVIDER_MODELS[model];
+  const currentMax = versions.find(v => v.id === modelVersion)?.maxTokens ?? 8192;
+
+  const handleProviderChange = (newModel: AIModel) => {
+    onModelChange(newModel);
+    const firstVersion = PROVIDER_MODELS[newModel][0];
+    onModelVersionChange(firstVersion.id);
+    onMaxTokensChange(Math.min(maxTokens, firstVersion.maxTokens));
+  };
+
   return (
-    <div className={`space-y-6 ${disabled ? 'opacity-50' : ''}`}>
-      <div className="space-y-4">
+    <div className={`space-y-4 ${disabled ? 'opacity-50' : ''}`}>
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700">AI Provider</label>
+        <select
+          value={model}
+          onChange={(e) => handleProviderChange(e.target.value as AIModel)}
+          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+          disabled={disabled}
+        >
+          {(Object.keys(PROVIDER_LABELS) as AIModel[]).map((m) => (
+            <option key={m} value={m}>{PROVIDER_LABELS[m]}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-sm font-medium text-gray-700">API Key</label>
           <button
             type="button"
-            className="inline-flex items-center px-3 py-1.5 text-sm text-indigo-600 hover:text-indigo-500 hover:bg-indigo-50 rounded-full transition-colors"
+            className="inline-flex items-center px-3 py-1 text-xs text-indigo-600 hover:text-indigo-500 hover:bg-indigo-50 rounded-full transition-colors"
             onClick={() => setShowInstructions(true)}
             disabled={disabled}
           >
-            <Info className="w-4 h-4 mr-1.5" />
-            How to get API key
+            <Info className="w-3.5 h-3.5 mr-1" />
+            How to get key
           </button>
         </div>
         <input
@@ -70,49 +132,45 @@ export function ModelConfig({
           value={apiKey}
           onChange={(e) => onApiKeyChange(e.target.value)}
           className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-          placeholder="Enter OpenAI API key"
+          placeholder={API_KEY_PLACEHOLDERS[model]}
           disabled={disabled}
         />
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Organization ID (Optional)</label>
-        <input
-          type="text"
-          value={orgId}
-          onChange={(e) => onOrgIdChange(e.target.value)}
-          className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-          placeholder="Enter OpenAI organization ID"
-          disabled={disabled}
-        />
-      </div>
+      {model === 'gpt4' && (
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-gray-700">Organization ID <span className="text-gray-400">(optional)</span></label>
+          <input
+            type="text"
+            value={orgId}
+            onChange={(e) => onOrgIdChange(e.target.value)}
+            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            placeholder="org-..."
+            disabled={disabled}
+          />
+        </div>
+      )}
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">Model Version</label>
+        <label className="text-sm font-medium text-gray-700">Model</label>
         <select
           value={modelVersion}
           onChange={(e) => {
             onModelVersionChange(e.target.value);
-            const selectedVersion = MODEL_VERSIONS.find(v => v.id === e.target.value);
-            if (selectedVersion) {
-              onMaxTokensChange(Math.min(maxTokens, selectedVersion.maxTokens));
-            }
+            const v = versions.find(v => v.id === e.target.value);
+            if (v) onMaxTokensChange(Math.min(maxTokens, v.maxTokens));
           }}
           className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
           disabled={disabled}
         >
-          {MODEL_VERSIONS.map((version) => (
-            <option key={version.id} value={version.id}>
-              {version.name} (max {version.maxTokens.toLocaleString()} tokens)
-            </option>
+          {versions.map((v) => (
+            <option key={v.id} value={v.id}>{v.name}</option>
           ))}
         </select>
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">
-          Temperature ({temperature})
-        </label>
+        <label className="text-sm font-medium text-gray-700">Temperature ({temperature})</label>
         <input
           type="range"
           min="0"
@@ -123,18 +181,23 @@ export function ModelConfig({
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
           disabled={disabled}
         />
+        <div className="flex justify-between text-xs text-gray-400">
+          <span>Focused</span>
+          <span>Creative</span>
+        </div>
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-gray-700">
-          Max Tokens (max: {MODEL_VERSIONS.find(v => v.id === modelVersion)?.maxTokens.toLocaleString()})
-        </label>
+        <label className="text-sm font-medium text-gray-700">Max Tokens (max: {currentMax.toLocaleString()})</label>
         <input
           type="number"
           min="1"
-          max={MODEL_VERSIONS.find(v => v.id === modelVersion)?.maxTokens || 32000}
+          max={currentMax}
           value={maxTokens}
-          onChange={(e) => onMaxTokensChange(Number(e.target.value))}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            onMaxTokensChange(Math.max(1, Math.min(v, currentMax)));
+          }}
           className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
           disabled={disabled}
         />
@@ -143,8 +206,8 @@ export function ModelConfig({
       <ApiKeyInstructions
         isOpen={showInstructions}
         onClose={() => setShowInstructions(false)}
-        instructions="1. Go to platform.openai.com\n2. Sign up/Login\n3. Go to API keys section\n4. Create new secret key"
-        modelName="OpenAI"
+        instructions={API_KEY_INSTRUCTIONS[model]}
+        modelName={PROVIDER_LABELS[model]}
       />
     </div>
   );
