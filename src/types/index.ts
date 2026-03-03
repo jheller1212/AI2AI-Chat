@@ -14,6 +14,10 @@ export interface Message {
   content: string;
   timestamp: number;
   model?: AIModel;
+  modelVersion?: string;
+  temperature?: number;
+  systemPrompt?: string;
+  conversationId?: string;
   wordCount?: number;
   timeTaken?: number;
   hidden?: boolean;
