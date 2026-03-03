@@ -6,7 +6,6 @@ export async function generateResponse(
   messages: Message[]
 ): Promise<Message> {
   const startTime = Date.now();
-
   const provider = createProvider(config.model);
 
   const apiMessages = messages.map(msg => ({
@@ -14,24 +13,37 @@ export async function generateResponse(
     content: msg.content
   }));
 
-  const result = await provider.makeRequest({
-    apiKey: config.apiKey,
-    orgId: config.orgId,
-    model: config.modelVersion,
-    temperature: config.temperature,
-    maxTokens: config.maxTokens
-  }, apiMessages);
+  let lastError: Error = new Error('Unknown error');
 
-  const timeTaken = Date.now() - startTime;
-  const wordCount = result.content.trim().split(/\s+/).filter(Boolean).length;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+    }
+    try {
+      const result = await provider.makeRequest({
+        apiKey: config.apiKey,
+        orgId: config.orgId,
+        model: config.modelVersion,
+        temperature: config.temperature,
+        maxTokens: config.maxTokens
+      }, apiMessages);
 
-  return {
-    id: crypto.randomUUID(),
-    role: 'assistant',
-    model: config.model,
-    content: result.content,
-    timestamp: Date.now(),
-    wordCount,
-    timeTaken
-  };
+      const timeTaken = Date.now() - startTime;
+      const wordCount = result.content.trim().split(/\s+/).filter(Boolean).length;
+
+      return {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        model: config.model,
+        content: result.content,
+        timestamp: Date.now(),
+        wordCount,
+        timeTaken
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+    }
+  }
+
+  throw lastError;
 }

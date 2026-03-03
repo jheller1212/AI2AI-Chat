@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { Send, Download, Camera, RotateCcw, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { Send, Download, Camera, RotateCcw, FileText, FileSpreadsheet, ChevronDown, MessageSquare, Table } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { ConversationDisplay } from './ConversationDisplay';
+import { DataTable } from './DataTable';
 import { InfoTooltip } from './InfoTooltip';
 import { Message } from '../types';
 
@@ -65,6 +66,7 @@ export function ChatPanel({
   const conversationRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [screenshotting, setScreenshotting] = useState(false);
+  const [activeTab, setActiveTab] = useState<'chat' | 'data'>('chat');
 
   const handleScreenshot = async () => {
     if (!conversationRef.current) return;
@@ -99,10 +101,39 @@ export function ChatPanel({
     <div className="flex-1 min-h-0 bg-white rounded-lg shadow-sm overflow-hidden flex flex-col">
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
-        <div className="flex items-center gap-3 text-sm text-gray-600">
-          <span className="font-medium" style={{ color: textColor1 !== '#312E81' ? textColor1 : '#4338CA' }}>{botName1}</span>
-          <span className="text-gray-400">vs</span>
-          <span className="font-medium" style={{ color: textColor2 !== '#064E3B' ? textColor2 : '#047857' }}>{botName2}</span>
+        <div className="flex items-center gap-3">
+          {/* Tab switcher */}
+          <div className="flex gap-0.5 border border-gray-200 rounded-lg p-0.5 bg-gray-100">
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
+                activeTab === 'chat' ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <MessageSquare className="w-3 h-3" />
+              Chat
+            </button>
+            <button
+              onClick={() => setActiveTab('data')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
+                activeTab === 'data' ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Table className="w-3 h-3" />
+              Data
+              {messages.filter(m => !m.hidden && m.role !== 'system').length > 0 && (
+                <span className="bg-indigo-100 text-indigo-700 rounded-full px-1.5 font-medium text-[10px]">
+                  {messages.filter(m => !m.hidden && m.role !== 'system').length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          <span className="text-sm text-gray-400">
+            <span className="font-medium" style={{ color: textColor1 !== '#312E81' ? textColor1 : '#4338CA' }}>{botName1}</span>
+            <span className="mx-1.5">vs</span>
+            <span className="font-medium" style={{ color: textColor2 !== '#064E3B' ? textColor2 : '#047857' }}>{botName2}</span>
+          </span>
         </div>
         <div className="flex items-center gap-2">
           {isLoading && autoInteract && (
@@ -165,18 +196,24 @@ export function ChatPanel({
         </div>
       </div>
 
-      {/* Conversation area */}
-      <div className="flex-1 overflow-y-auto p-4" ref={conversationRef}>
-        <ConversationDisplay
-          messages={messages}
-          isLoading={isLoading}
-          botName1={botName1}
-          botName2={botName2}
-          bubbleColor1={bubbleColor1}
-          bubbleColor2={bubbleColor2}
-          textColor1={textColor1}
-          textColor2={textColor2}
-        />
+      {/* Content area */}
+      <div className="flex-1 overflow-y-auto" ref={conversationRef}>
+        {activeTab === 'chat' ? (
+          <div className="p-4">
+            <ConversationDisplay
+              messages={messages}
+              isLoading={isLoading}
+              botName1={botName1}
+              botName2={botName2}
+              bubbleColor1={bubbleColor1}
+              bubbleColor2={bubbleColor2}
+              textColor1={textColor1}
+              textColor2={textColor2}
+            />
+          </div>
+        ) : (
+          <DataTable messages={messages} botName1={botName1} botName2={botName2} />
+        )}
       </div>
 
       {/* Input area */}
