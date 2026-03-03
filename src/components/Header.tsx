@@ -23,6 +23,7 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
+            aria-label="Back"
             className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -32,6 +33,7 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenHistory}
+            aria-label="Conversation history"
             className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
             title="Conversation history"
           >
@@ -40,6 +42,7 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
           </button>
           <button
             onClick={onToggleSettings}
+            aria-label="Toggle AI config panels"
             className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
             title="Toggle AI config panels"
           >
@@ -47,6 +50,7 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
           </button>
           <button
             onClick={onOpenUserSettings}
+            aria-label="Settings"
             className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
             title="Settings"
           >
@@ -54,6 +58,7 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
           </button>
           <button
             onClick={onToggleDarkMode}
+            aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
             title={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >

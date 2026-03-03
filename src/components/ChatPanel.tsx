@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Send, Download, Camera, RotateCcw, FileText, FileSpreadsheet, ChevronDown, MessageSquare, Table, Square } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { ConversationDisplay } from './ConversationDisplay';
@@ -71,7 +71,24 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const conversationRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   const [screenshotting, setScreenshotting] = useState(false);
+
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowExportMenu(false); };
+    const handleClick = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('keydown', handleKey);
+    document.addEventListener('mousedown', handleClick);
+    return () => {
+      document.removeEventListener('keydown', handleKey);
+      document.removeEventListener('mousedown', handleClick);
+    };
+  }, [showExportMenu]);
   const [activeTab, setActiveTab] = useState<'chat' | 'data'>('chat');
 
   const handleScreenshot = async () => {
@@ -166,7 +183,7 @@ export function ChatPanel({
 
           {/* Export dropdown */}
           {hasMessages && (
-            <div className="relative">
+            <div className="relative" ref={exportMenuRef}>
               <button
                 onClick={() => setShowExportMenu(v => !v)}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
