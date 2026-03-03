@@ -90,7 +90,24 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
         onAuthSuccess();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
+        setError('Unable to reach the authentication server. Please check your internet connection and try again.');
+      } else if (err instanceof Error) {
+        const msg = err.message;
+        if (msg.includes('Invalid login credentials')) {
+          setError('Incorrect email or password.');
+        } else if (msg.includes('Email not confirmed')) {
+          setError('Please confirm your email address before signing in.');
+        } else if (msg.includes('User already registered')) {
+          setError('An account with this email already exists. Try signing in instead.');
+        } else if (msg.includes('Password should be')) {
+          setError('Password must be at least 6 characters.');
+        } else {
+          setError(msg);
+        }
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
