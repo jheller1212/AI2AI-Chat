@@ -149,7 +149,7 @@ export function ChatPanel({
           {isLoading && autoInteract && (
             <span className="text-xs text-gray-400 dark:text-gray-500 tabular-nums">
               {repetitionCount > 1 && `Run ${repetitionCurrent + 1}/${repetitionCount} · `}
-              Turn {interactionCount + 1}/{maxInteractions}
+              Msg {Math.ceil((interactionCount + 1) / 2)}/{Math.ceil(maxInteractions / 2)}
             </span>
           )}
 
@@ -278,24 +278,24 @@ export function ChatPanel({
               className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
             />
             Auto-interact
-            <InfoTooltip text="When enabled, the two AIs automatically take turns responding to each other up to the max turns limit. Disable to trigger each response manually." />
+            <InfoTooltip text="When enabled, the two AIs automatically take turns responding to each other up to the messages-per-bot limit. Disable to trigger each response manually." />
           </label>
 
           {autoInteract && (
             <>
-              {/* Max turns */}
+              {/* Messages per bot */}
               <label className="flex items-center gap-2">
-                <span className="text-gray-500 dark:text-gray-400">Max turns</span>
+                <span className="text-gray-500 dark:text-gray-400">Messages per bot</span>
                 <input
                   type="number"
                   min="1"
-                  max="50"
+                  max="25"
                   step="1"
-                  value={maxInteractions}
-                  onChange={(e) => onMaxInteractionsChange(Math.max(1, Number(e.target.value)))}
+                  value={Math.ceil(maxInteractions / 2)}
+                  onChange={(e) => onMaxInteractionsChange(Math.max(1, Number(e.target.value)) * 2)}
                   className="w-14 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 />
-                <InfoTooltip text="Total number of AI responses per conversation run. Each bot speaks once every two turns, so 10 turns = 5 exchanges." />
+                <InfoTooltip text="How many times each bot responds per run. Set to 5 → Bot A speaks 5 times, Bot B speaks 5 times (10 total AI responses)." />
               </label>
 
               {/* Delay slider */}
