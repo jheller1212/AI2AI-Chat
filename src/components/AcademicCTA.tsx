@@ -18,6 +18,10 @@ export function AcademicCTA({ onSignUpClick }: AcademicCTAProps) {
         >
           Create free account
         </button>
+        <p className="mt-8 text-sm text-gray-400 max-w-lg mx-auto">
+          Conversations are stored in our database so you can review them later.
+          You can disable this per session in the app. API keys never leave your browser.
+        </p>
       </div>
     </div>
   );
