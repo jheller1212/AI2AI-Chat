@@ -10,31 +10,44 @@ interface AuthProps {
 const TERMS_TEXT = `TERMS OF USE & USER AGREEMENT
 Last updated: March 2026
 
-By creating an account and using AI2AI Chat ("the Service"), you agree to the following terms:
+By creating an account and using AI2AI Chat ("the Service"), you agree to the following terms. If you do not agree, do not use the Service.
 
 1. ACCEPTANCE OF TERMS
-By registering, you confirm that you are at least 16 years of age and legally capable of entering into this agreement.
+By registering, you confirm that you are at least 16 years of age and legally capable of entering into this agreement. If you are accessing the Service on behalf of an organisation, you represent that you have authority to bind that organisation to these terms.
 
 2. SERVICE PROVIDED "AS IS"
-The Service is provided on an "as is" and "as available" basis without warranties of any kind, express or implied. The operator of this Service makes no representations or warranties regarding the accuracy, reliability, completeness, or fitness for a particular purpose of any content generated through the Service. Use of the Service is entirely at your own risk.
+The Service is provided on an "as is" and "as available" basis without warranties of any kind, express or implied. The operator makes no representations regarding the accuracy, reliability, completeness, or fitness for a particular purpose of any content generated through the Service. Use of the Service is entirely at your own risk.
 
 3. LIMITATION OF LIABILITY
-To the fullest extent permitted by applicable law, the operator of this Service shall not be liable for any direct, indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, the Service — including but not limited to damages resulting from AI-generated content, data loss, or reliance on information obtained through the Service.
+To the fullest extent permitted by applicable law, the operator shall not be liable for any direct, indirect, incidental, special, consequential, or punitive damages arising from your use of, or inability to use, the Service — including but not limited to damages resulting from AI-generated content, data loss, or reliance on information obtained through the Service.
 
 4. THIRD-PARTY AI SERVICES & API KEYS
 You are solely responsible for obtaining and managing your own API keys from third-party AI providers (including but not limited to OpenAI, Anthropic, Google, and Mistral). You agree to comply with the terms of service of any third-party AI provider whose services you access through this platform. The operator assumes no responsibility for charges, restrictions, or actions taken by third-party providers in relation to your API usage.
 
 5. ACCEPTABLE USE
-You agree not to use the Service for any unlawful purpose, to generate harmful or illegal content, or to violate the terms of any third-party service accessed through the platform.
+You agree not to use the Service to:
+- Generate, distribute, or facilitate illegal, abusive, defamatory, or harmful content
+- Produce, promote, or distribute child sexual abuse material (CSAM) or content exploiting minors
+- Harass, threaten, or impersonate any individual or organisation
+- Circumvent the safety systems, rate limits, or terms of service of any AI provider
+- Conduct automated bulk usage that violates provider policies
+- Engage in activities regulated by export control laws (ITAR/EAR) without authorisation
+- Violate any applicable local, national, or international law
 
-6. EMAIL COMMUNICATIONS
+6. ACCOUNT SUSPENSION & TERMINATION
+The operator may suspend or terminate your access at any time for any reason, including breach of these Terms, without liability. You may delete your account at any time from Settings. All associated data is permanently removed within 30 days of deletion.
+
+7. EMAIL COMMUNICATIONS
 By creating an account, you agree to receive service-related emails including account confirmations, important notices, and occasional product updates. You may opt out of non-essential communications at any time.
 
-7. DATA
-Conversation data you generate may be stored to provide the Service. You retain ownership of your content. The operator will not sell your personal data to third parties.
+8. DATA & PRIVACY
+Conversation data you choose to save may be stored to provide the Service. You retain ownership of your content. The operator will not sell your personal data to third parties. Data is stored via Supabase (US servers). For full details, see the Privacy Policy at ai2aichat.netlify.app. Data retention: account data is kept until you delete your account, after which it is removed within 30 days.
 
-8. CHANGES TO TERMS
-These terms may be updated from time to time. Continued use of the Service after changes constitutes acceptance of the revised terms.`;
+9. GOVERNING LAW
+These Terms are governed by the laws of the European Union and, where applicable, the laws of the country in which the operator is established. Disputes shall be subject to the exclusive jurisdiction of the competent courts of that jurisdiction. EU consumers retain the benefit of mandatory consumer protection laws in their country of residence.
+
+10. CHANGES TO TERMS
+These Terms may be updated from time to time. We will notify you by email or in-app notice for material changes. Continued use of the Service after the effective date constitutes acceptance of the revised terms.`;
 
 export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
   const [isSignUp, setIsSignUp] = useState(initialIsSignUp);

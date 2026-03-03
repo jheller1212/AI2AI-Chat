@@ -4,9 +4,12 @@ import { supabase } from './lib/supabase';
 import { Auth } from './components/Auth';
 import { ResearchInterface } from './components/ResearchInterface';
 import { LandingPage } from './components/LandingPage';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { TermsOfUse } from './components/TermsOfUse';
+import { StorageNotice } from './components/StorageNotice';
 import { clearVault } from './lib/apiKeyVault';
 
-type View = 'landing' | 'auth' | 'app';
+type View = 'landing' | 'auth' | 'app' | 'privacy' | 'terms';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -65,26 +68,50 @@ function App() {
     );
   }
 
+  const storageNotice = <StorageNotice onPrivacyClick={() => setView('privacy')} />;
+
   if (view === 'auth') {
-    return <Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} />;
+    return <>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} /></>;
   }
 
   if (view === 'app' && session) {
     return (
-      <ResearchInterface
-        onSignOut={handleSignOut}
-        onBack={() => setView('landing')}
-        user={session.user}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={() => setIsDarkMode(v => !v)}
-      />
+      <>
+        {storageNotice}
+        <ResearchInterface
+          onSignOut={handleSignOut}
+          onBack={() => setView('landing')}
+          user={session.user}
+          isDarkMode={isDarkMode}
+          onToggleDarkMode={() => setIsDarkMode(v => !v)}
+        />
+      </>
     );
+  }
+
+  if (view === 'privacy') {
+    return <>{storageNotice}<PrivacyPolicy onBack={() => setView('landing')} /></>;
+  }
+
+  if (view === 'terms') {
+    return <>{storageNotice}<TermsOfUse onBack={() => setView('landing')} /></>;
   }
 
   const goToSignIn = () => { setAuthMode('signin'); setView(session ? 'app' : 'auth'); };
   const goToSignUp = () => { setAuthMode('signup'); setView(session ? 'app' : 'auth'); };
 
-  return <LandingPage onAuthClick={goToSignIn} onSignUpClick={goToSignUp} isAuthenticated={!!session} />;
+  return (
+    <>
+      {storageNotice}
+      <LandingPage
+        onAuthClick={goToSignIn}
+        onSignUpClick={goToSignUp}
+        isAuthenticated={!!session}
+        onPrivacyClick={() => setView('privacy')}
+        onTermsClick={() => setView('terms')}
+      />
+    </>
+  );
 }
 
 export default App;
