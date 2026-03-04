@@ -21,13 +21,13 @@ const STEPS: TourStep[] = [
   {
     target: '[data-tour="bot1-panel"]',
     title: 'Configure Bot 1',
-    description: 'Choose a provider (OpenAI, Claude, Gemini, or Mistral), paste your API key, pick a model version, and write a system prompt to define this bot\'s personality or role.',
+    description: 'Choose a provider (OpenAI, Claude, Gemini, or Mistral), paste your API key, pick a model version, and write a system prompt to define this bot\'s personality or role. On mobile, tap the Settings icon in the header to open the config panels.',
     side: 'right',
   },
   {
     target: '[data-tour="bot2-panel"]',
     title: 'Configure Bot 2',
-    description: 'Set up the second bot as the other side of the debate or discussion. For the most interesting conversations, give it a contrasting system prompt.',
+    description: 'Set up the second bot as the other side of the debate or discussion. For the most interesting conversations, give it a contrasting system prompt. Both bots are configured in the same Settings panel on mobile.',
     side: 'left',
   },
   {
@@ -136,17 +136,17 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [step, setStep] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [measuring, setMeasuring] = useState(false);
-  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null);
+  const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const currentStep = STEPS[step];
   const isFirst = step === 0;
   const isLast = step === STEPS.length - 1;
 
-  const computeTooltipPos = useCallback((r: DOMRect, side?: TourStep['side']): { top: number; left: number } => {
+  const computeTooltipPos = useCallback((r: DOMRect, side?: TourStep['side']): { top: number; left: number; width: number } => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const sp = SPOTLIGHT_PADDING;
-    const tw = TOOLTIP_WIDTH;
+    const tw = Math.min(TOOLTIP_WIDTH, vw - 16); // never wider than viewport
     const th = 220; // estimated tooltip height
 
     const spLeft = r.left - sp;
@@ -160,24 +160,28 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
       return {
         left: spRight + gap,
         top: Math.min(Math.max(spTop + (r.height + sp * 2) / 2 - th / 2, 8), vh - th - 8),
+        width: tw,
       };
     }
     if (side === 'left' || (!side && spLeft - tw - gap > 0)) {
       return {
         left: spLeft - tw - gap,
         top: Math.min(Math.max(spTop + (r.height + sp * 2) / 2 - th / 2, 8), vh - th - 8),
+        width: tw,
       };
     }
     if (side === 'top' || (!side && spTop - th - gap > 0)) {
       return {
         left: Math.min(Math.max(r.left, 8), vw - tw - 8),
         top: spTop - th - gap,
+        width: tw,
       };
     }
     // Default: below
     return {
       left: Math.min(Math.max(r.left, 8), vw - tw - 8),
       top: spBottom + gap,
+      width: tw,
     };
   }, []);
 
@@ -191,8 +195,9 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     setMeasuring(true);
     const timer = setTimeout(() => {
       const el = document.querySelector(currentStep.target!);
-      if (el) {
-        const r = el.getBoundingClientRect();
+      const r = el ? el.getBoundingClientRect() : null;
+      // Treat hidden elements (display:none → zero dimensions) same as missing
+      if (r && r.width > 0 && r.height > 0) {
         setRect(r);
         setTooltipPos(computeTooltipPos(r, currentStep.side));
       } else {
@@ -208,10 +213,13 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     const timer = measureTarget();
     const handleResize = () => {
       const el = currentStep.target ? document.querySelector(currentStep.target) : null;
-      if (el) {
-        const r = el.getBoundingClientRect();
+      const r = el ? el.getBoundingClientRect() : null;
+      if (r && r.width > 0 && r.height > 0) {
         setRect(r);
         setTooltipPos(computeTooltipPos(r, currentStep.side));
+      } else {
+        setRect(null);
+        setTooltipPos(null);
       }
     };
     window.addEventListener('resize', handleResize);
@@ -286,7 +294,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
             position: 'fixed',
             top: tooltipPos.top,
             left: tooltipPos.left,
-            width: TOOLTIP_WIDTH,
+            width: tooltipPos.width,
             zIndex: 1002,
           }}
           className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 p-5 space-y-3"
