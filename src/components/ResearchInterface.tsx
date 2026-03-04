@@ -5,6 +5,7 @@ import { generateResponse } from '../lib/api/conversation';
 import { supabase } from '../lib/supabase';
 import { loadVault } from '../lib/apiKeyVault';
 import type { AIModel, Message, ChatConfig } from '../types';
+import { X } from 'lucide-react';
 import { Header } from './Header';
 import { ErrorDisplay } from './ErrorDisplay';
 import { ChatPanel } from './ChatPanel';
@@ -446,6 +447,68 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
           onClose={() => setShowHistory(false)}
           onLoad={(loaded) => setMessages(loaded)}
         />
+      )}
+
+      {/* Mobile settings overlay — hidden on lg+ where sidebars are used instead */}
+      {showSettings && (
+        <div className="lg:hidden fixed inset-0 z-40 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Bot Configuration</h2>
+            <button
+              onClick={() => setShowSettings(false)}
+              className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              aria-label="Close settings"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-6">
+            <AIConfigPanel
+              title={botName1}
+              onTitleChange={setBotName1}
+              model={model1}
+              onModelChange={setModel1}
+              apiKey={apiKey1}
+              onApiKeyChange={setApiKey1}
+              orgId={orgId1}
+              onOrgIdChange={setOrgId1}
+              modelVersion={modelVersion1}
+              onModelVersionChange={setModelVersion1}
+              temperature={temperature1}
+              onTemperatureChange={setTemperature1}
+              maxTokens={maxTokens1}
+              onMaxTokensChange={setMaxTokens1}
+              systemPrompt={systemPrompt1}
+              onSystemPromptChange={setSystemPrompt1}
+              bubbleColor={bubbleColor1}
+              onBubbleColorChange={setBubbleColor1}
+              textColor={textColor1}
+              onTextColorChange={setTextColor1}
+            />
+            <AIConfigPanel
+              title={botName2}
+              onTitleChange={setBotName2}
+              model={model2}
+              onModelChange={setModel2}
+              apiKey={apiKey2}
+              onApiKeyChange={setApiKey2}
+              orgId={orgId2}
+              onOrgIdChange={setOrgId2}
+              modelVersion={modelVersion2}
+              onModelVersionChange={setModelVersion2}
+              temperature={temperature2}
+              onTemperatureChange={setTemperature2}
+              maxTokens={maxTokens2}
+              onMaxTokensChange={setMaxTokens2}
+              systemPrompt={systemPrompt2}
+              onSystemPromptChange={setSystemPrompt2}
+              bubbleColor={bubbleColor2}
+              onBubbleColorChange={setBubbleColor2}
+              textColor={textColor2}
+              onTextColorChange={setTextColor2}
+            />
+          </div>
+        </div>
       )}
 
       <main className="flex-1 min-h-0 w-full px-4 sm:px-6 lg:px-8 py-6 overflow-hidden">

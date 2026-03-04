@@ -39,7 +39,7 @@ Past conversations are saved to a Supabase database per user account. You can br
 
 **Other:**
 - Dark mode (follows system preference on first visit, then remembers your choice)
-- User account settings — update display name, email, password, or delete all stored conversation data
+- User account settings — update display name, email, or password; delete your conversation history; or permanently delete your account
 
 ---
 
@@ -81,6 +81,22 @@ npm run dev
 
 The app runs at http://localhost:5173.
 
+**Set up the database schema:**
+
+Open the [Supabase SQL editor](https://supabase.com/dashboard) for your project and run the contents of `supabase/migrations/001_initial.sql`.
+
+**Deploy the Edge Function (required for account deletion):**
+
+Install the [Supabase CLI](https://supabase.com/docs/guides/cli), then:
+
+```bash
+supabase login
+supabase link --project-ref your-project-ref
+supabase functions deploy delete-account
+```
+
+The function uses the built-in `SUPABASE_SERVICE_ROLE_KEY` secret — no additional configuration is needed.
+
 To build for production:
 
 ```bash
@@ -97,9 +113,13 @@ Connect the repo to [Netlify](https://netlify.com) and it will build and deploy 
 
 **One-time setup:**
 
-In your Netlify site settings, add two environment variables:
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
+1. In your Netlify site settings, add two environment variables:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+
+2. Run the database migration in the Supabase SQL editor (`supabase/migrations/001_initial.sql`).
+
+3. Deploy the Edge Function (see the local setup instructions above). The function must be deployed from the Supabase CLI — it cannot be configured through Netlify.
 
 ---
 
