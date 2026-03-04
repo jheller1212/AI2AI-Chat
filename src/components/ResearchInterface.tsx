@@ -436,6 +436,7 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
           onClose={() => setShowUserSettings(false)}
           onOpenHistory={() => { setShowUserSettings(false); setShowHistory(true); }}
           onDataDeleted={() => { setMessages([]); setShowUserSettings(false); }}
+          onAccountDeleted={() => { onSignOut(); }}
         />
       )}
 

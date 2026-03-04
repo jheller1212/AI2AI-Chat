@@ -92,8 +92,9 @@ export function TermsOfUse({ onBack }: TermsOfUseProps) {
             <p>
               The operator may suspend or terminate your access to the Service at any time and for any
               reason, including but not limited to a breach of these Terms, without liability. You may
-              delete your account at any time from Settings. Upon account deletion, all associated
-              conversation data is permanently removed within 30 days.
+              delete your account at any time from Settings → Delete Account. Upon account deletion,
+              all associated conversation data and your account credentials are permanently and
+              immediately deleted.
             </p>
           </section>
 

@@ -2,16 +2,17 @@ import React, { useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { X, Settings, User as UserIcon, Mail, Lock, Save, Clock, Trash2, KeyRound } from 'lucide-react';
-import { loadVault, saveVault, type ProviderVault } from '../lib/apiKeyVault';
+import { loadVault, saveVault, clearVault, type ProviderVault } from '../lib/apiKeyVault';
 
 interface UserSettingsProps {
   user: User;
   onClose: () => void;
   onOpenHistory?: () => void;
   onDataDeleted?: () => void;
+  onAccountDeleted?: () => void;
 }
 
-export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted }: UserSettingsProps) {
+export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAccountDeleted }: UserSettingsProps) {
   const [displayName, setDisplayName] = useState(user.user_metadata?.display_name ?? '');
   const [email, setEmail] = useState(user.email ?? '');
   const [newPassword, setNewPassword] = useState('');
@@ -20,6 +21,8 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted }: Us
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [deleteStep, setDeleteStep] = useState<'idle' | 'confirm'>('idle');
   const [deleting, setDeleting] = useState(false);
+  const [deleteAccountStep, setDeleteAccountStep] = useState<'idle' | 'confirm'>('idle');
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [vault, setVault] = useState<ProviderVault>(() => loadVault());
 
   useEffect(() => {
@@ -82,6 +85,21 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted }: Us
       setDeleteStep('idle');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    try {
+      const { error } = await supabase.functions.invoke('delete-account');
+      if (error) throw error;
+      clearVault();
+      onAccountDeleted?.();
+    } catch (err) {
+      setMessage({ text: err instanceof Error ? err.message : 'Failed to delete account', type: 'error' });
+      setDeleteAccountStep('idle');
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -221,12 +239,14 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted }: Us
 
         {/* Danger Zone */}
         <div className="px-6 pb-4 pt-2">
-          <div className="rounded-xl border border-red-200 dark:border-red-800 p-4">
-            <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-1">Danger Zone</p>
+          <div className="rounded-xl border border-red-200 dark:border-red-800 p-4 space-y-4">
+            <p className="text-sm font-medium text-red-700 dark:text-red-400">Danger Zone</p>
+
+            {/* Delete conversation history */}
             {deleteStep === 'idle' ? (
               <div className="flex items-center justify-between gap-4">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Permanently delete all your conversation history from the database. This cannot be undone.
+                  Permanently delete all your conversation history. Your account remains active.
                 </p>
                 <button
                   onClick={() => setDeleteStep('confirm')}
@@ -260,6 +280,51 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted }: Us
                       <Trash2 className="w-3.5 h-3.5" />
                     )}
                     {deleting ? 'Deleting…' : 'Yes, delete everything'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <hr className="border-red-100 dark:border-red-900" />
+
+            {/* Delete account */}
+            {deleteAccountStep === 'idle' ? (
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Permanently delete your account and all associated data. This cannot be undone.
+                </p>
+                <button
+                  onClick={() => setDeleteAccountStep('confirm')}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 border border-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Account
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-xs text-gray-600 dark:text-gray-300">
+                  This will permanently delete your account and all your data. You will be signed out immediately. <strong>This cannot be undone.</strong>
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setDeleteAccountStep('idle')}
+                    disabled={deletingAccount}
+                    className="flex-1 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={deletingAccount}
+                    className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  >
+                    {deletingAccount ? (
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                    {deletingAccount ? 'Deleting…' : 'Yes, delete my account'}
                   </button>
                 </div>
               </div>

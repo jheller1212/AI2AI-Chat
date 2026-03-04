@@ -76,9 +76,9 @@ export function PrivacyPolicy({ onBack }: PrivacyPolicyProps) {
             <p>
               Your account data and saved conversations are retained for as long as your account remains
               active. If you delete your account, all associated data (conversations and messages) is
-              permanently deleted within 30 days. You can delete your account at any time from
-              Settings → Delete Account. You may also delete individual conversations from your
-              conversation history.
+              permanently and immediately deleted. You can delete your account at any time from
+              Settings → Delete Account. You may also clear your conversation history without deleting
+              your account via Settings → Delete all data.
             </p>
           </section>
 
