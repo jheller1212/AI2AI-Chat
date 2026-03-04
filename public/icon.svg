@@ -1,12 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- indigo circle left -->
-  <circle cx="22" cy="32" r="16" fill="#6366f1"/>
-  <!-- emerald circle right -->
-  <circle cx="42" cy="32" r="16" fill="#10b981"/>
-  <!-- overlap blend -->
-  <circle cx="22" cy="32" r="16" fill="#6366f1" opacity="0.6"/>
-  <circle cx="42" cy="32" r="16" fill="#10b981" opacity="0.6"/>
-  <!-- chat bubbles -->
-  <rect x="12" y="25" width="16" height="9" rx="4" fill="white" opacity="0.9"/>
-  <rect x="36" y="30" width="16" height="9" rx="4" fill="white" opacity="0.9"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- FlaskConical (orange) -->
+  <g stroke="#f97316" stroke-width="1.5">
+    <path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2"/>
+    <path d="M8.5 2h7"/>
+    <path d="M7 16h10"/>
+  </g>
+  <!-- Bot face (sky blue, small, bottom-right) -->
+  <g transform="translate(11.5, 11.5) scale(0.45)" stroke="#0ea5e9" stroke-width="1.5">
+    <rect width="16" height="12" x="4" y="8" rx="2"/>
+    <path d="M12 8V4H8"/>
+    <path d="M2 14h2"/>
+    <path d="M20 14h2"/>
+    <path d="M15 13v2"/>
+    <path d="M9 13v2"/>
+  </g>
 </svg>
