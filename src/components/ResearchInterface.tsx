@@ -141,8 +141,6 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
       content: msg.content,
       word_count: msg.wordCount ?? 0,
       time_taken: msg.timeTaken ?? 0
-    }).then(({ error }) => {
-      if (error) console.error('Failed to save message:', error.message);
     });
   };
 
@@ -160,7 +158,6 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
     }).select('id').single();
 
     if (error) {
-      console.error('Failed to create conversation:', error.message);
       setErrors(prev => [...prev, `History unavailable: ${error.message}`]);
       return null;
     }
@@ -259,8 +256,6 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
           model: 'User',
           content: userMsg,
           word_count: userMsg.split(/\s+/).filter(Boolean).length
-        }).then(({ error }) => {
-          if (error) console.error('Failed to save user message:', error.message);
         });
       }
     }

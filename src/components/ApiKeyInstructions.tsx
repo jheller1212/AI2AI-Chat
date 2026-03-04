@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, ShieldAlert, ExternalLink } from 'lucide-react';
 
 interface ApiKeyInstructionsProps {
@@ -9,17 +9,27 @@ interface ApiKeyInstructionsProps {
 }
 
 export function ApiKeyInstructions({ isOpen, onClose, instructions, modelName }: ApiKeyInstructionsProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
+
+  const titleId = 'api-key-instructions-title';
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 relative">
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4 relative">
         <div className="flex items-center justify-between p-4 border-b dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          <h3 id={titleId} className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             How to get {modelName} API Key
           </h3>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors"
           >
             <X className="w-5 h-5" />

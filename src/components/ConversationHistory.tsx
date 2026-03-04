@@ -122,13 +122,13 @@ export function ConversationHistory({ userId, onClose, onLoad }: ConversationHis
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex">
-      <div className="ml-auto w-full max-w-3xl bg-white dark:bg-gray-900 h-full flex flex-col shadow-2xl">
+      <div role="dialog" aria-modal="true" aria-labelledby="conv-history-title" className="ml-auto w-full max-w-3xl bg-white dark:bg-gray-900 h-full flex flex-col shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Conversation History</h2>
+            <h2 id="conv-history-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Conversation History</h2>
           </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg">
+          <button onClick={onClose} aria-label="Close" className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg">
             <X className="w-5 h-5" />
           </button>
         </div>

@@ -204,6 +204,7 @@ export function ModelConfig({
           step="0.1"
           value={temperature}
           onChange={(e) => onTemperatureChange(Number(e.target.value))}
+          aria-label={`Temperature: ${temperature}`}
           className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-indigo-600"
           disabled={disabled}
         />

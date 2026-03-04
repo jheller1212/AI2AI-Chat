@@ -87,13 +87,13 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted }: Us
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div role="dialog" aria-modal="true" aria-labelledby="user-settings-title" className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Settings</h2>
+            <h2 id="user-settings-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100">Settings</h2>
           </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg">
+          <button onClick={onClose} aria-label="Close" className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-lg">
             <X className="w-5 h-5" />
           </button>
         </div>

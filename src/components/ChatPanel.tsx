@@ -111,8 +111,8 @@ export function ChatPanel({
         a.click();
         URL.revokeObjectURL(url);
       });
-    } catch (e) {
-      console.error('Screenshot failed:', e);
+    } catch {
+      // screenshot failed silently — user stays in the app
     } finally {
       setScreenshotting(false);
     }
