@@ -65,11 +65,27 @@ const API_KEY_PLACEHOLDERS: Record<AIModel, string> = {
   mistral: 'Your Mistral API key',
 };
 
-const API_KEY_INSTRUCTIONS: Record<AIModel, string> = {
-  gpt4: '1. Go to platform.openai.com\n2. Sign in / create account\n3. Go to API keys\n4. Create new secret key',
-  claude: '1. Go to console.anthropic.com\n2. Sign in / create account\n3. Go to API keys\n4. Create new key',
-  gemini: '1. Go to aistudio.google.com\n2. Sign in with Google\n3. Click "Get API key"\n4. Create API key',
-  mistral: '1. Go to console.mistral.ai\n2. Sign in / create account\n3. Go to API keys\n4. Create new key',
+const API_KEY_INSTRUCTIONS: Record<AIModel, { url: string; label: string; steps: string[] }> = {
+  gpt4: {
+    url: 'https://platform.openai.com/api-keys',
+    label: 'platform.openai.com',
+    steps: ['Sign in or create an account', 'Go to API keys', 'Create new secret key'],
+  },
+  claude: {
+    url: 'https://console.anthropic.com/settings/keys',
+    label: 'console.anthropic.com',
+    steps: ['Sign in or create an account', 'Go to API keys', 'Create new key'],
+  },
+  gemini: {
+    url: 'https://aistudio.google.com/app/apikey',
+    label: 'aistudio.google.com',
+    steps: ['Sign in with Google', 'Click "Get API key"', 'Create API key'],
+  },
+  mistral: {
+    url: 'https://console.mistral.ai/api-keys/',
+    label: 'console.mistral.ai',
+    steps: ['Sign in or create an account', 'Go to API keys', 'Create new key'],
+  },
 };
 
 export function ModelConfig({

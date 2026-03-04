@@ -1,10 +1,10 @@
 import React from 'react';
-import { X, ShieldAlert } from 'lucide-react';
+import { X, ShieldAlert, ExternalLink } from 'lucide-react';
 
 interface ApiKeyInstructionsProps {
   isOpen: boolean;
   onClose: () => void;
-  instructions: string;
+  instructions: { url: string; label: string; steps: string[] };
   modelName: string;
 }
 
@@ -48,22 +48,48 @@ export function ApiKeyInstructions({ isOpen, onClose, instructions, modelName }:
           </div>
 
           <ol className="space-y-3">
-            {instructions.split('\n').map((step, index) => (
+            <li className="flex items-start">
+              <span className="flex items-center justify-center w-6 h-6 bg-indigo-100 dark:bg-indigo-900/40 rounded-full text-indigo-600 dark:text-indigo-400 text-sm font-medium mr-3 shrink-0">
+                1
+              </span>
+              <span className="text-gray-600 dark:text-gray-300">
+                Go to{' '}
+                <a
+                  href={instructions.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline font-medium"
+                >
+                  {instructions.label}
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </span>
+            </li>
+            {instructions.steps.map((step, index) => (
               <li key={index} className="flex items-start">
-                <span className="flex items-center justify-center w-6 h-6 bg-indigo-100 dark:bg-indigo-900/40 rounded-full text-indigo-600 dark:text-indigo-400 text-sm font-medium mr-3">
-                  {index + 1}
+                <span className="flex items-center justify-center w-6 h-6 bg-indigo-100 dark:bg-indigo-900/40 rounded-full text-indigo-600 dark:text-indigo-400 text-sm font-medium mr-3 shrink-0">
+                  {index + 2}
                 </span>
-                <span className="text-gray-600 dark:text-gray-300">{step.substring(step.indexOf('.') + 2)}</span>
+                <span className="text-gray-600 dark:text-gray-300">{step}</span>
               </li>
             ))}
           </ol>
         </div>
-        <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-b-lg">
+        <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-b-lg flex gap-3">
+          <a
+            href={instructions.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-sm font-medium"
+          >
+            Open {instructions.label}
+            <ExternalLink className="w-4 h-4" />
+          </a>
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-sm"
           >
-            Got it
+            Close
           </button>
         </div>
       </div>
