@@ -46,6 +46,28 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Idle timeout: sign out and clear vault after 30 minutes of inactivity.
+  useEffect(() => {
+    if (!session) return;
+
+    const IDLE_MS = 30 * 60 * 1000;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(handleSignOut, IDLE_MS);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    reset();
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach(e => window.removeEventListener(e, reset));
+    };
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSignOut = async () => {
     // Clear all API keys from localStorage before signing out so they are not
     // left behind on shared/public devices.
