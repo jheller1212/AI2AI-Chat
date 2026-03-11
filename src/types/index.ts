@@ -22,6 +22,7 @@ export interface Message {
   timeTaken?: number;
   hidden?: boolean;
   botIndex?: 1 | 2;
+  repetitionNumber?: number; // 0-indexed repetition within a run
 }
 
 export interface ChatConfig {

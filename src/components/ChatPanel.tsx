@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Send, Download, Camera, RotateCcw, FileText, FileSpreadsheet, ChevronDown, MessageSquare, Table, Square } from 'lucide-react';
+import { Send, Download, Camera, RotateCcw, FileText, FileSpreadsheet, ChevronDown, MessageSquare, Table, Square, Link, Copy } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { ConversationDisplay } from './ConversationDisplay';
 import { DataTable } from './DataTable';
@@ -36,6 +36,18 @@ interface ChatPanelProps {
   bubbleColor2: string;
   textColor1: string;
   textColor2: string;
+  // Research features (SPEC-02/03/04/06)
+  sessionId?: string;
+  conditionLabel?: string;
+  botMode: 'symmetric' | 'asymmetric';
+  onBotModeChange: (mode: 'symmetric' | 'asymmetric') => void;
+  openingMessage: string;
+  onOpeningMessageChange: (v: string) => void;
+  stopKeywords: string;
+  onStopKeywordsChange: (v: string) => void;
+  onShareConfig: () => void;
+  shareCopied: boolean;
+  runTokens?: string[];
 }
 
 export function ChatPanel({
@@ -68,11 +80,23 @@ export function ChatPanel({
   bubbleColor2,
   textColor1,
   textColor2,
+  sessionId,
+  conditionLabel,
+  botMode,
+  onBotModeChange,
+  openingMessage,
+  onOpeningMessageChange,
+  stopKeywords,
+  onStopKeywordsChange,
+  onShareConfig,
+  shareCopied,
+  runTokens,
 }: ChatPanelProps) {
   const conversationRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [screenshotting, setScreenshotting] = useState(false);
+  const [tokenCopied, setTokenCopied] = useState<string | null>(null);
 
   useEffect(() => {
     if (!showExportMenu) return;
@@ -89,6 +113,7 @@ export function ChatPanel({
       document.removeEventListener('mousedown', handleClick);
     };
   }, [showExportMenu]);
+
   const [activeTab, setActiveTab] = useState<'chat' | 'data'>('chat');
 
   const handleScreenshot = async () => {
@@ -112,16 +137,33 @@ export function ChatPanel({
         URL.revokeObjectURL(url);
       });
     } catch {
-      // screenshot failed silently — user stays in the app
+      // screenshot failed silently
     } finally {
       setScreenshotting(false);
     }
+  };
+
+  const copyToken = (token: string) => {
+    navigator.clipboard.writeText(token).then(() => {
+      setTokenCopied(token);
+      setTimeout(() => setTokenCopied(null), 2000);
+    });
   };
 
   const hasMessages = onExportTxt != null;
 
   return (
     <div className="flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden flex flex-col">
+
+      {/* SPEC-02: participant / condition banner */}
+      {(sessionId || conditionLabel) && (
+        <div className="px-4 py-1.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-3">
+          {sessionId    && <span>Participant: <strong>{sessionId}</strong></span>}
+          {sessionId && conditionLabel && <span className="text-amber-400 dark:text-amber-600">·</span>}
+          {conditionLabel && <span>Condition: <strong>{conditionLabel}</strong></span>}
+        </div>
+      )}
+
       {/* Header bar */}
       <div data-tour="chat-tabs" className="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
         <div className="flex items-center gap-3">
@@ -158,8 +200,10 @@ export function ChatPanel({
 
           <span className="text-sm text-gray-400 dark:text-gray-500">
             <span className="font-medium" style={{ color: textColor1 !== '#312E81' ? textColor1 : '#4338CA' }}>{botName1}</span>
+            {botMode === 'asymmetric' && <span className="ml-1 text-[10px] text-amber-500 dark:text-amber-400">(I)</span>}
             <span className="mx-1.5">vs</span>
             <span className="font-medium" style={{ color: textColor2 !== '#064E3B' ? textColor2 : '#047857' }}>{botName2}</span>
+            {botMode === 'asymmetric' && <span className="ml-1 text-[10px] text-sky-500 dark:text-sky-400">(R)</span>}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -243,49 +287,119 @@ export function ChatPanel({
         )}
       </div>
 
+      {/* SPEC-02: run token display after conversation ends */}
+      {runTokens && runTokens.length > 0 && (
+        <div className="px-4 py-2 border-t dark:border-gray-700 bg-indigo-50 dark:bg-indigo-900/20">
+          <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium mb-1">
+            Run token{runTokens.length > 1 ? 's' : ''} — copy into your survey for record linkage
+          </p>
+          <div className="flex flex-col gap-1">
+            {runTokens.map((token, i) => (
+              <div key={token} className="flex items-center gap-2">
+                {runTokens.length > 1 && (
+                  <span className="text-[10px] text-indigo-400 w-8">Run {i + 1}</span>
+                )}
+                <code className="flex-1 text-[11px] font-mono bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-700 rounded px-2 py-0.5 text-indigo-700 dark:text-indigo-300 truncate">
+                  {token}
+                </code>
+                <button
+                  onClick={() => copyToken(token)}
+                  className="p-1 text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
+                  title="Copy token"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                </button>
+                {tokenCopied === token && (
+                  <span className="text-[10px] text-green-600 dark:text-green-400">Copied!</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Input area */}
       <div className="p-4 border-t dark:border-gray-700 space-y-3">
-        <div data-tour="chat-input" className="flex gap-3">
-          <input
-            type="text"
-            value={userInput}
-            onChange={(e) => onUserInputChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                onSendMessage();
-              }
-            }}
-            disabled={isLoading}
-            placeholder="Opening message (optional — leave blank to let system prompts guide the AIs)"
-            className="flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
-          />
-          {isLoading && onStop ? (
-            <button
-              onClick={onStop}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-2 text-sm"
-              title="Stop after the current response finishes"
-            >
-              <Square className="w-4 h-4" />
-              Stop
-            </button>
-          ) : (
-            <button
-              onClick={onSendMessage}
-              disabled={isLoading}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
-            >
-              {isLoading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-              {isLoading ? 'Thinking…' : 'Send'}
-            </button>
-          )}
-        </div>
 
-        {/* Controls row */}
+        {/* User input — hidden in asymmetric mode when an opening message is configured */}
+        {!(botMode === 'asymmetric' && openingMessage.trim()) && (
+          <div data-tour="chat-input" className="flex gap-3">
+            <input
+              type="text"
+              value={userInput}
+              onChange={(e) => onUserInputChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  onSendMessage();
+                }
+              }}
+              disabled={isLoading}
+              placeholder={
+                botMode === 'asymmetric'
+                  ? 'Context for both bots (optional — leave blank to start from system prompts)'
+                  : 'Opening message (optional — leave blank to let system prompts guide the AIs)'
+              }
+              className="flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+            />
+            {isLoading && onStop ? (
+              <button
+                onClick={onStop}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-2 text-sm"
+                title="Stop after the current response finishes"
+              >
+                <Square className="w-4 h-4" />
+                Stop
+              </button>
+            ) : (
+              <button
+                onClick={onSendMessage}
+                disabled={isLoading}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+              >
+                {isLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                {isLoading ? 'Thinking…' : 'Send'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Asymmetric mode: start button when opener is configured */}
+        {botMode === 'asymmetric' && openingMessage.trim() && (
+          <div className="flex gap-3">
+            <div className="flex-1 px-3 py-2.5 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 truncate">
+              Bot A will open with: <em>{openingMessage.trim()}</em>
+            </div>
+            {isLoading && onStop ? (
+              <button
+                onClick={onStop}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center gap-2 text-sm"
+              >
+                <Square className="w-4 h-4" />
+                Stop
+              </button>
+            ) : (
+              <button
+                onClick={onSendMessage}
+                disabled={isLoading}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+              >
+                {isLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                {isLoading ? 'Thinking…' : 'Start'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Auto-interact controls */}
         <div data-tour="chat-controls" className="flex flex-wrap items-start gap-x-6 gap-y-3 text-sm text-gray-600 dark:text-gray-400">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -300,7 +414,6 @@ export function ChatPanel({
 
           {autoInteract && (
             <>
-              {/* Messages per bot */}
               <label className="flex items-center gap-2">
                 <span className="text-gray-500 dark:text-gray-400">Messages per bot</span>
                 <input
@@ -315,7 +428,6 @@ export function ChatPanel({
                 <InfoTooltip text="How many times each bot responds per run. Set to 5 → Bot A speaks 5 times, Bot B speaks 5 times (10 total AI responses)." />
               </label>
 
-              {/* Delay slider */}
               <label className="flex items-center gap-2">
                 <span className="text-gray-500 dark:text-gray-400">Delay</span>
                 <input
@@ -331,7 +443,6 @@ export function ChatPanel({
                 <InfoTooltip text="Fixed pause (in seconds) between each AI response. Useful for pacing the conversation or staying within API rate limits." />
               </label>
 
-              {/* Length-based variance */}
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
@@ -343,7 +454,6 @@ export function ChatPanel({
                 <InfoTooltip text="Adds extra delay proportional to the length of each message (approx. 0.05 s per word), simulating the time a human would take to read it." />
               </label>
 
-              {/* Repetitions */}
               <label className="flex items-center gap-2">
                 <span className="text-gray-500 dark:text-gray-400">Repeat</span>
                 <input
@@ -361,7 +471,6 @@ export function ChatPanel({
             </>
           )}
 
-          {/* Save to history toggle */}
           <label className="flex items-center gap-2 cursor-pointer ml-auto">
             <input
               type="checkbox"
@@ -372,6 +481,75 @@ export function ChatPanel({
             <span className="text-gray-500 dark:text-gray-400">Save to history</span>
             <InfoTooltip text="When disabled, this conversation is not written to the database. Nothing is stored server-side — useful for sensitive research data or private experiments." align="right" />
           </label>
+        </div>
+
+        {/* Research controls row */}
+        <div className="flex flex-wrap items-start gap-x-5 gap-y-2.5 text-sm pt-2 border-t border-gray-100 dark:border-gray-700">
+          {/* SPEC-03: bot role mode toggle */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Bot roles</span>
+            <div className="flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden text-[11px]">
+              <button
+                onClick={() => onBotModeChange('symmetric')}
+                className={`px-2.5 py-1 transition-colors ${
+                  botMode === 'symmetric'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                }`}
+              >
+                Symmetric
+              </button>
+              <button
+                onClick={() => onBotModeChange('asymmetric')}
+                className={`px-2.5 py-1 transition-colors border-l border-gray-300 dark:border-gray-600 ${
+                  botMode === 'asymmetric'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                }`}
+              >
+                Asymmetric
+              </button>
+            </div>
+            <InfoTooltip text="Symmetric: both bots are equal. Asymmetric: Bot A is the Initiator (speaks first); Bot B is the Responder. Roles are labelled in CSV exports. Use for negotiation or role-play research." />
+          </div>
+
+          {/* SPEC-03: scripted opening message for Bot A */}
+          {botMode === 'asymmetric' && (
+            <label className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">Bot A opener</span>
+              <input
+                type="text"
+                value={openingMessage}
+                onChange={(e) => onOpeningMessageChange(e.target.value)}
+                placeholder="Scripted first line (blank = AI generates)"
+                className="flex-1 min-w-0 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+              />
+              <InfoTooltip text="Fixed first message from Bot A that does NOT count against the turn limit. Leave blank to let Bot A's AI generate its opening line from its system prompt." />
+            </label>
+          )}
+
+          {/* SPEC-04: stop keywords */}
+          <label className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">Stop words</span>
+            <input
+              type="text"
+              value={stopKeywords}
+              onChange={(e) => onStopKeywordsChange(e.target.value)}
+              placeholder="agreed, deal, accept"
+              className="w-44 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+            />
+            <InfoTooltip text="Comma-separated keywords. If any bot's response contains one, the conversation stops immediately. The trigger is recorded in CSV exports as a dependent variable." />
+          </label>
+
+          {/* SPEC-06: share config link */}
+          <button
+            onClick={onShareConfig}
+            className="flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors ml-auto"
+            title="Copy a URL that pre-loads all current configuration (model, prompts, settings)"
+          >
+            <Link className="w-3.5 h-3.5" />
+            {shareCopied ? 'Link copied!' : 'Share config'}
+          </button>
         </div>
       </div>
     </div>

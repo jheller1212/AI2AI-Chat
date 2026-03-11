@@ -9,6 +9,21 @@ import { TermsOfUse } from './components/TermsOfUse';
 import { StorageNotice } from './components/StorageNotice';
 import { clearVault } from './lib/apiKeyVault';
 
+// Parse URL parameters once on module load so they survive re-renders.
+function parseUrlParams() {
+  const p = new URLSearchParams(window.location.search);
+  const sessionId = p.get('session_id') ?? undefined;
+  const conditionLabel = p.get('condition') ?? undefined;
+  let sharedConfig: Record<string, unknown> | undefined;
+  const cfg = p.get('cfg');
+  if (cfg) {
+    try { sharedConfig = JSON.parse(atob(cfg)); } catch { /* invalid — ignore */ }
+  }
+  return { sessionId, conditionLabel, sharedConfig };
+}
+
+const URL_PARAMS = parseUrlParams();
+
 type View = 'landing' | 'auth' | 'app' | 'privacy' | 'terms';
 
 function App() {
@@ -106,6 +121,9 @@ function App() {
           user={session.user}
           isDarkMode={isDarkMode}
           onToggleDarkMode={() => setIsDarkMode(v => !v)}
+          sessionId={URL_PARAMS.sessionId}
+          conditionLabel={URL_PARAMS.conditionLabel}
+          sharedConfig={URL_PARAMS.sharedConfig}
         />
       </>
     );

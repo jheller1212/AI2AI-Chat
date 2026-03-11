@@ -4,6 +4,7 @@ import { validateModelConfig } from '../lib/validation';
 import { generateResponse } from '../lib/api/conversation';
 import { supabase } from '../lib/supabase';
 import { loadVault } from '../lib/apiKeyVault';
+import { hashString } from '../lib/hash';
 import type { AIModel, Message, ChatConfig } from '../types';
 import { X } from 'lucide-react';
 import { Header } from './Header';
@@ -20,6 +21,11 @@ interface ResearchInterfaceProps {
   user: User;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
+  // SPEC-02: participant/session context from URL params
+  sessionId?: string;
+  conditionLabel?: string;
+  // SPEC-06: pre-parsed shared config payload from ?cfg= URL param
+  sharedConfig?: Record<string, unknown>;
 }
 
 const STORAGE_KEY = 'ai2ai_settings';
@@ -33,7 +39,24 @@ function loadSettings() {
   }
 }
 
-export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggleDarkMode }: ResearchInterfaceProps) {
+// Helper to safely pull a string out of a sharedConfig object.
+function sc(cfg: Record<string, unknown> | undefined, key: string): string | undefined {
+  const v = cfg?.[key];
+  return typeof v === 'string' ? v : undefined;
+}
+function scNum(cfg: Record<string, unknown> | undefined, key: string): number | undefined {
+  const v = cfg?.[key];
+  return typeof v === 'number' ? v : undefined;
+}
+function scBool(cfg: Record<string, unknown> | undefined, key: string): boolean | undefined {
+  const v = cfg?.[key];
+  return typeof v === 'boolean' ? v : undefined;
+}
+
+export function ResearchInterface({
+  onSignOut, onBack, user, isDarkMode, onToggleDarkMode,
+  sessionId, conditionLabel, sharedConfig,
+}: ResearchInterfaceProps) {
   const saved = loadSettings();
 
   const [showSettings, setShowSettings] = useState(true);
@@ -41,8 +64,9 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
   const [showHistory, setShowHistory] = useState(false);
   const [showTour, setShowTour] = useState(() => !localStorage.getItem('ai2ai_tour_done'));
 
-  const [model1, setModel1] = useState<AIModel>(saved?.model1 ?? 'gpt4');
-  const [model2, setModel2] = useState<AIModel>(saved?.model2 ?? 'gpt4');
+  // Bot configs — sharedConfig (from URL) overrides saved (localStorage).
+  const [model1, setModel1] = useState<AIModel>((sc(sharedConfig, 'm1') as AIModel) ?? saved?.model1 ?? 'gpt4');
+  const [model2, setModel2] = useState<AIModel>((sc(sharedConfig, 'm2') as AIModel) ?? saved?.model2 ?? 'gpt4');
   const [apiKey1, setApiKey1] = useState<string>(() => {
     if (saved?.apiKey1) return saved.apiKey1;
     return loadVault()[saved?.model1 ?? 'gpt4'] ?? '';
@@ -53,28 +77,37 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
   });
   const [orgId1, setOrgId1] = useState<string>(saved?.orgId1 ?? '');
   const [orgId2, setOrgId2] = useState<string>(saved?.orgId2 ?? '');
-  const [modelVersion1, setModelVersion1] = useState<string>(saved?.modelVersion1 ?? 'gpt-4o');
-  const [modelVersion2, setModelVersion2] = useState<string>(saved?.modelVersion2 ?? 'gpt-4o');
-  const [temperature1, setTemperature1] = useState<number>(saved?.temperature1 ?? 0.7);
-  const [temperature2, setTemperature2] = useState<number>(saved?.temperature2 ?? 0.7);
-  const [maxTokens1, setMaxTokens1] = useState<number>(saved?.maxTokens1 ?? 2000);
-  const [maxTokens2, setMaxTokens2] = useState<number>(saved?.maxTokens2 ?? 2000);
-  const [botName1, setBotName1] = useState<string>(saved?.botName1 ?? 'AI #1');
-  const [botName2, setBotName2] = useState<string>(saved?.botName2 ?? 'AI #2');
+  const [modelVersion1, setModelVersion1] = useState<string>(sc(sharedConfig, 'mv1') ?? saved?.modelVersion1 ?? 'gpt-4o');
+  const [modelVersion2, setModelVersion2] = useState<string>(sc(sharedConfig, 'mv2') ?? saved?.modelVersion2 ?? 'gpt-4o');
+  const [temperature1, setTemperature1] = useState<number>(scNum(sharedConfig, 't1') ?? saved?.temperature1 ?? 0.7);
+  const [temperature2, setTemperature2] = useState<number>(scNum(sharedConfig, 't2') ?? saved?.temperature2 ?? 0.7);
+  const [maxTokens1, setMaxTokens1] = useState<number>(scNum(sharedConfig, 'mt1') ?? saved?.maxTokens1 ?? 2000);
+  const [maxTokens2, setMaxTokens2] = useState<number>(scNum(sharedConfig, 'mt2') ?? saved?.maxTokens2 ?? 2000);
+  const [botName1, setBotName1] = useState<string>(sc(sharedConfig, 'n1') ?? saved?.botName1 ?? 'AI #1');
+  const [botName2, setBotName2] = useState<string>(sc(sharedConfig, 'n2') ?? saved?.botName2 ?? 'AI #2');
   const [systemPrompt1, setSystemPrompt1] = useState<string>(
-    saved?.systemPrompt1 ?? 'You are a helpful AI assistant with expertise in science and technology.'
+    sc(sharedConfig, 'sp1') ?? saved?.systemPrompt1 ?? 'You are a helpful AI assistant with expertise in science and technology.'
   );
   const [systemPrompt2, setSystemPrompt2] = useState<string>(
-    saved?.systemPrompt2 ?? 'You are a creative AI assistant with expertise in arts and humanities.'
+    sc(sharedConfig, 'sp2') ?? saved?.systemPrompt2 ?? 'You are a creative AI assistant with expertise in arts and humanities.'
   );
-  const [responseDelay, setResponseDelay] = useState<number>(saved?.responseDelay ?? 1);
-  const [delayVariance, setDelayVariance] = useState<boolean>(saved?.delayVariance ?? false);
-  const [maxInteractions, setMaxInteractions] = useState<number>(saved?.maxInteractions ?? 10);
-  const [repetitionCount, setRepetitionCount] = useState<number>(saved?.repetitionCount ?? 1);
-  const [bubbleColor1, setBubbleColor1] = useState<string>(saved?.bubbleColor1 ?? '#EEF2FF');
-  const [bubbleColor2, setBubbleColor2] = useState<string>(saved?.bubbleColor2 ?? '#ECFDF5');
-  const [textColor1, setTextColor1] = useState<string>(saved?.textColor1 ?? '#312E81');
-  const [textColor2, setTextColor2] = useState<string>(saved?.textColor2 ?? '#064E3B');
+  const [responseDelay, setResponseDelay] = useState<number>(scNum(sharedConfig, 'rd') ?? saved?.responseDelay ?? 1);
+  const [delayVariance, setDelayVariance] = useState<boolean>(scBool(sharedConfig, 'dv') ?? saved?.delayVariance ?? false);
+  const [maxInteractions, setMaxInteractions] = useState<number>(scNum(sharedConfig, 'mi') ?? saved?.maxInteractions ?? 10);
+  const [repetitionCount, setRepetitionCount] = useState<number>(scNum(sharedConfig, 'rc') ?? saved?.repetitionCount ?? 1);
+  const [bubbleColor1, setBubbleColor1] = useState<string>(sc(sharedConfig, 'bc1') ?? saved?.bubbleColor1 ?? '#EEF2FF');
+  const [bubbleColor2, setBubbleColor2] = useState<string>(sc(sharedConfig, 'bc2') ?? saved?.bubbleColor2 ?? '#ECFDF5');
+  const [textColor1, setTextColor1] = useState<string>(sc(sharedConfig, 'tc1') ?? saved?.textColor1 ?? '#312E81');
+  const [textColor2, setTextColor2] = useState<string>(sc(sharedConfig, 'tc2') ?? saved?.textColor2 ?? '#064E3B');
+
+  // SPEC-03: role asymmetry
+  const [botMode, setBotMode] = useState<'symmetric' | 'asymmetric'>(
+    (sc(sharedConfig, 'bm') as 'symmetric' | 'asymmetric') ?? saved?.botMode ?? 'symmetric'
+  );
+  const [openingMessage, setOpeningMessage] = useState<string>(sc(sharedConfig, 'om') ?? saved?.openingMessage ?? '');
+
+  // SPEC-04: keyword stopping
+  const [stopKeywords, setStopKeywords] = useState<string>(sc(sharedConfig, 'sk') ?? saved?.stopKeywords ?? '');
 
   const [userInput, setUserInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -85,6 +118,12 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
   const [interactionCount, setInteractionCount] = useState(0);
   const [repetitionCurrent, setRepetitionCurrent] = useState(0);
 
+  // SPEC-04: track stopping trigger per conversation (conversationId → trigger string)
+  const [stoppingTriggers, setStoppingTriggers] = useState<Record<string, string>>({});
+
+  // SPEC-06: share-link copied toast
+  const [shareCopied, setShareCopied] = useState(false);
+
   // Refs so async callbacks always read the latest values
   const autoInteractRef = useRef(autoInteract);
   const maxInteractionsRef = useRef(maxInteractions);
@@ -92,7 +131,13 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
   const delayVarianceRef = useRef(delayVariance);
   const repetitionCountRef = useRef(repetitionCount);
   const repetitionCurrentRef = useRef(0);
-  const initialChainRef = useRef<{ userMsg: string; allMessages: Message[]; localConversationId: string } | null>(null);
+  const stopKeywordsRef = useRef(stopKeywords);
+  const initialChainRef = useRef<{
+    userMsg: string;
+    allMessages: Message[];
+    localConversationId: string;
+    bot1StartsFirst: boolean;
+  } | null>(null);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isStoppedRef = useRef(false);
 
@@ -101,6 +146,7 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
   useEffect(() => { responseDelayRef.current = responseDelay; }, [responseDelay]);
   useEffect(() => { delayVarianceRef.current = delayVariance; }, [delayVariance]);
   useEffect(() => { repetitionCountRef.current = repetitionCount; }, [repetitionCount]);
+  useEffect(() => { stopKeywordsRef.current = stopKeywords; }, [stopKeywords]);
 
   useEffect(() => {
     return () => {
@@ -116,14 +162,16 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
       maxTokens1, maxTokens2, botName1, botName2,
       systemPrompt1, systemPrompt2, responseDelay, delayVariance,
       autoInteract, maxInteractions, repetitionCount, saveHistory,
-      bubbleColor1, bubbleColor2, textColor1, textColor2
+      bubbleColor1, bubbleColor2, textColor1, textColor2,
+      botMode, openingMessage, stopKeywords,
     }));
   }, [model1, model2, apiKey1, apiKey2, orgId1, orgId2,
       modelVersion1, modelVersion2, temperature1, temperature2,
       maxTokens1, maxTokens2, botName1, botName2,
       systemPrompt1, systemPrompt2, responseDelay, delayVariance,
       autoInteract, maxInteractions, repetitionCount, saveHistory,
-      bubbleColor1, bubbleColor2, textColor1, textColor2]);
+      bubbleColor1, bubbleColor2, textColor1, textColor2,
+      botMode, openingMessage, stopKeywords]);
 
   const validateConfigs = () => {
     const e1 = validateModelConfig(model1, { apiKey: apiKey1, temperature: temperature1, maxTokens: maxTokens1 });
@@ -146,7 +194,7 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
   };
 
   const createConversationRecord = async (title: string, id: string) => {
-    if (!saveHistory) return id; // skip DB; return id so downstream code is unaffected
+    if (!saveHistory) return id;
     const { data, error } = await supabase.from('conversations').insert({
       id,
       user_id: user.id,
@@ -172,16 +220,15 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
     dbConversationId: string | null,
     localConversationId: string,
     currentCount: number,
-    onChainComplete: () => void
+    repetitionIndex: number,
+    onChainComplete: (trigger: string) => void
   ): Promise<void> => {
     try {
       const myBotIndex: 1 | 2 = isFirstAI ? 1 : 2;
 
       // Remap roles from this bot's perspective:
-      // - This bot's own previous messages stay as 'assistant'
-      // - The other bot's messages become 'user' (it is speaking TO this bot)
-      // This ensures the conversation always ends with a 'user' message for APIs
-      // that require strict user/assistant alternation (e.g. Anthropic Claude).
+      // - Own previous messages stay as 'assistant'
+      // - The other bot's messages become 'user'
       const remappedMessages = currentMessages.map(m => {
         if (m.role !== 'assistant') return m;
         return { ...m, role: (m.botIndex === myBotIndex ? 'assistant' : 'user') as const };
@@ -195,12 +242,28 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
         temperature: config.temperature,
         systemPrompt: config.systemPrompt,
         conversationId: localConversationId,
+        repetitionNumber: repetitionIndex,
       };
 
       setMessages(prev => [...prev, taggedResponse]);
 
       if (dbConversationId) {
         saveMessageToDb(dbConversationId, taggedResponse, 'assistant', isFirstAI ? botName1 : botName2);
+      }
+
+      // SPEC-04: check stop keywords before scheduling next turn
+      const keywords = stopKeywordsRef.current
+        .split(',')
+        .map(k => k.trim())
+        .filter(Boolean);
+      if (keywords.length > 0 && !isStoppedRef.current) {
+        const lower = taggedResponse.content.toLowerCase();
+        const matched = keywords.find(k => lower.includes(k.toLowerCase()));
+        if (matched) {
+          setStoppingTriggers(prev => ({ ...prev, [localConversationId]: `keyword:${matched}` }));
+          onChainComplete(`keyword:${matched}`);
+          return;
+        }
       }
 
       if (autoInteractRef.current && currentCount < maxInteractionsRef.current - 1 && !isStoppedRef.current) {
@@ -214,7 +277,6 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
           maxTokens: maxTokens1, systemPrompt: systemPrompt1
         };
 
-        // Calculate delay: base + optional length-based variance (reading time estimate)
         const prevWords = taggedResponse.wordCount ?? 0;
         const computedDelay = delayVarianceRef.current
           ? (responseDelayRef.current + prevWords * 0.05) * 1000
@@ -222,11 +284,14 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
 
         pendingTimeoutRef.current = setTimeout(() => {
           setInteractionCount(currentCount + 1);
-          // Pass original currentMessages + tagged response; remapping happens at next call
-          generateAIResponse(otherConfig, [...currentMessages, taggedResponse], !isFirstAI, dbConversationId, localConversationId, currentCount + 1, onChainComplete);
+          generateAIResponse(
+            otherConfig, [...currentMessages, taggedResponse], !isFirstAI,
+            dbConversationId, localConversationId, currentCount + 1, repetitionIndex, onChainComplete
+          );
         }, computedDelay);
       } else {
-        onChainComplete();
+        setStoppingTriggers(prev => ({ ...prev, [localConversationId]: 'turn_count' }));
+        onChainComplete('turn_count');
       }
     } catch (error) {
       const msg = error instanceof Error
@@ -244,7 +309,8 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
     userMsg: string,
     baseMessages: Message[],
     repetitionIndex: number,
-    localConversationId: string
+    localConversationId: string,
+    bot1StartsFirst: boolean
   ) => {
     const dbConversationId = await createConversationRecord(userMsg, localConversationId);
 
@@ -266,20 +332,27 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
       modelVersion: modelVersion1, temperature: temperature1,
       maxTokens: maxTokens1, systemPrompt: systemPrompt1
     };
+    const config2: ChatConfig = {
+      model: model2, apiKey: apiKey2, orgId: orgId2,
+      modelVersion: modelVersion2, temperature: temperature2,
+      maxTokens: maxTokens2, systemPrompt: systemPrompt2
+    };
 
-    const onChainComplete = () => {
+    const onChainComplete = (_trigger: string) => {
       const nextRepetition = repetitionIndex + 1;
       if (nextRepetition < repetitionCountRef.current) {
         repetitionCurrentRef.current = nextRepetition;
         setRepetitionCurrent(nextRepetition);
         setInteractionCount(0);
-        // Short pause between repetitions, then start next chain
         pendingTimeoutRef.current = setTimeout(() => {
           if (initialChainRef.current) {
-            // Each repetition gets its own UUID so DB records and CSV rows are
-            // correctly grouped — reusing the same ID would cause a duplicate-key
-            // error on Supabase and make repetitions indistinguishable in exports.
-            startChain(initialChainRef.current.userMsg, initialChainRef.current.allMessages, nextRepetition, crypto.randomUUID());
+            startChain(
+              initialChainRef.current.userMsg,
+              initialChainRef.current.allMessages,
+              nextRepetition,
+              crypto.randomUUID(),
+              bot1StartsFirst
+            );
           }
         }, 1500);
       } else {
@@ -289,7 +362,12 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
       }
     };
 
-    await generateAIResponse(config1, baseMessages, true, dbConversationId, localConversationId, 0, onChainComplete);
+    if (bot1StartsFirst) {
+      await generateAIResponse(config1, baseMessages, true, dbConversationId, localConversationId, 0, repetitionIndex, onChainComplete);
+    } else {
+      // SPEC-03 asymmetric: Bot B (Responder) generates first AI turn
+      await generateAIResponse(config2, baseMessages, false, dbConversationId, localConversationId, 0, repetitionIndex, onChainComplete);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [model1, model2, apiKey1, apiKey2, orgId1, orgId2,
       modelVersion1, modelVersion2, temperature1, temperature2,
@@ -303,15 +381,7 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
       pendingTimeoutRef.current = null;
     }
 
-    const trimmed = userInput.trim();
-
-    // If no opening message, inject a hidden synthetic user message so the API has a valid turn
-    const newUserMessage: Message = trimmed
-      ? { id: crypto.randomUUID(), role: 'user', content: trimmed, timestamp: Date.now() }
-      : { id: crypto.randomUUID(), role: 'user', content: 'Please begin the conversation based on your instructions.', timestamp: Date.now(), hidden: true };
-
     isStoppedRef.current = false;
-    setMessages(prev => [...prev, newUserMessage]);
     setUserInput('');
     setIsLoading(true);
     setInteractionCount(0);
@@ -319,17 +389,64 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
     repetitionCurrentRef.current = 0;
     setErrors([]);
 
+    const localConversationId = crypto.randomUUID();
+
+    // SPEC-03: asymmetric mode with a scripted opener
+    if (botMode === 'asymmetric' && openingMessage.trim()) {
+      const opener: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: openingMessage.trim(),
+        timestamp: Date.now(),
+        botIndex: 1,
+        conversationId: localConversationId,
+        wordCount: openingMessage.trim().split(/\s+/).filter(Boolean).length,
+        timeTaken: 0,
+        modelVersion: modelVersion1,
+        temperature: temperature1,
+        systemPrompt: systemPrompt1,
+        repetitionNumber: 0,
+      };
+
+      setMessages(prev => [...prev, opener]);
+
+      const allMessages: Message[] = [
+        { id: 'sys1', role: 'system', content: systemPrompt1, timestamp: Date.now() },
+        { id: 'sys2', role: 'system', content: systemPrompt2, timestamp: Date.now() },
+        ...messages,
+        opener,
+      ];
+
+      initialChainRef.current = { userMsg: '', allMessages, localConversationId, bot1StartsFirst: false };
+
+      try {
+        await startChain('', allMessages, 0, localConversationId, false);
+      } catch (error) {
+        setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    // Symmetric mode (or asymmetric without a pre-scripted opener): existing flow
+    const trimmed = userInput.trim();
+
+    const newUserMessage: Message = trimmed
+      ? { id: crypto.randomUUID(), role: 'user', content: trimmed, timestamp: Date.now() }
+      : { id: crypto.randomUUID(), role: 'user', content: 'Please begin the conversation based on your instructions.', timestamp: Date.now(), hidden: true };
+
+    setMessages(prev => [...prev, newUserMessage]);
+
     const allMessages: Message[] = [
       { id: 'sys1', role: 'system', content: systemPrompt1, timestamp: Date.now() },
       ...messages,
       newUserMessage
     ];
 
-    const localConversationId = crypto.randomUUID();
-    initialChainRef.current = { userMsg: trimmed, allMessages, localConversationId };
+    initialChainRef.current = { userMsg: trimmed, allMessages, localConversationId, bot1StartsFirst: true };
 
     try {
-      await startChain(trimmed, allMessages, 0, localConversationId);
+      await startChain(trimmed, allMessages, 0, localConversationId, true);
     } catch (error) {
       setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
       setIsLoading(false);
@@ -342,7 +459,6 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
       clearTimeout(pendingTimeoutRef.current);
       pendingTimeoutRef.current = null;
     }
-    // isLoading will be set to false once the in-flight request resolves
   };
 
   const handleResetChat = () => {
@@ -357,6 +473,7 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
     repetitionCurrentRef.current = 0;
     setIsLoading(false);
     setErrors([]);
+    setStoppingTriggers({});
     initialChainRef.current = null;
   };
 
@@ -376,37 +493,68 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
     URL.revokeObjectURL(url);
   };
 
+  // SPEC-05: research-grade CSV export
   const handleExportCsv = () => {
-    // Always wrap every field in double-quotes and escape inner quotes as "".
-    // Also neutralise formula-injection characters (=, +, -, @) that spreadsheet
-    // apps evaluate when they appear at the start of an unquoted cell value.
     const csvField = (val: string) => {
       let s = String(val);
-      if (s.match(/^[=+\-@]/)) s = `'${s}`; // prefix to prevent formula execution
+      if (s.match(/^[=+\-@]/)) s = `'${s}`;
       return `"${s.replace(/"/g, '""')}"`;
     };
 
-    const rows = [['conversation_id', 'timestamp', 'sender', 'prompt', 'model', 'temperature', 'role', 'content', 'words', 'response_time_ms']];
-    messages
-      .filter(m => m.role !== 'system' && !m.hidden)
-      .forEach(m => {
-        const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? botName1 : botName2);
-        const fallbackPrompt = m.botIndex === 1 ? systemPrompt1 : m.botIndex === 2 ? systemPrompt2 : '';
-        const fallbackModel = m.botIndex === 1 ? modelVersion1 : m.botIndex === 2 ? modelVersion2 : '';
-        const fallbackTemp = m.botIndex === 1 ? temperature1 : m.botIndex === 2 ? temperature2 : '';
-        rows.push([
-          csvField(m.conversationId ?? ''),
-          csvField(new Date(m.timestamp).toISOString()),
-          csvField(label),
-          csvField(m.systemPrompt ?? fallbackPrompt),
-          csvField(m.modelVersion ?? fallbackModel),
-          csvField(String(m.temperature ?? fallbackTemp)),
-          csvField(m.role),
-          csvField(m.content),
-          csvField(String(m.wordCount ?? '')),
-          csvField(String(m.timeTaken ?? ''))
-        ]);
-      });
+    const visibleMessages = messages.filter(m => m.role !== 'system' && !m.hidden);
+
+    // pre-compute final turn count per conversationId
+    const finalTurnByConv: Record<string, number> = {};
+    visibleMessages.forEach(m => {
+      if (m.conversationId) finalTurnByConv[m.conversationId] = (finalTurnByConv[m.conversationId] ?? 0) + 1;
+    });
+
+    const headers = [
+      'session_id', 'condition_label', 'repetition_number',
+      'conversation_id', 'timestamp', 'sender', 'bot_role',
+      'system_prompt_hash', 'model', 'temperature',
+      'content', 'words', 'response_time_ms',
+      'stopping_trigger', 'final_turn_number',
+    ];
+
+    const rows = [headers];
+
+    visibleMessages.forEach(m => {
+      const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? botName1 : botName2);
+      const fallbackPrompt = m.botIndex === 1 ? systemPrompt1 : m.botIndex === 2 ? systemPrompt2 : '';
+      const fallbackModel  = m.botIndex === 1 ? modelVersion1  : m.botIndex === 2 ? modelVersion2  : '';
+      const fallbackTemp   = m.botIndex === 1 ? temperature1   : m.botIndex === 2 ? temperature2   : '';
+
+      // SPEC-05: bot_role (only meaningful in asymmetric mode)
+      const botRole = botMode === 'asymmetric'
+        ? (m.botIndex === 1 ? 'initiator' : m.botIndex === 2 ? 'responder' : '')
+        : '';
+
+      // SPEC-05: system_prompt_hash for version tracking
+      const promptText = m.systemPrompt ?? fallbackPrompt;
+      const promptHash = promptText ? hashString(promptText) : '';
+
+      const convId = m.conversationId ?? '';
+
+      rows.push([
+        csvField(sessionId ?? ''),
+        csvField(conditionLabel ?? ''),
+        csvField(String(m.repetitionNumber ?? 0)),
+        csvField(convId),
+        csvField(new Date(m.timestamp).toISOString()),
+        csvField(label),
+        csvField(botRole),
+        csvField(promptHash),
+        csvField(m.modelVersion ?? String(fallbackModel)),
+        csvField(String(m.temperature ?? fallbackTemp)),
+        csvField(m.content),
+        csvField(String(m.wordCount ?? '')),
+        csvField(String(m.timeTaken ?? '')),
+        csvField(stoppingTriggers[convId] ?? ''),
+        csvField(String(finalTurnByConv[convId] ?? '')),
+      ]);
+    });
+
     const csv = rows.map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -416,6 +564,34 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  // SPEC-06: copy a pre-configured share link to clipboard
+  const handleShareConfig = useCallback(() => {
+    const payload = {
+      m1: model1, mv1: modelVersion1, t1: temperature1, mt1: maxTokens1,
+      sp1: systemPrompt1, n1: botName1,
+      m2: model2, mv2: modelVersion2, t2: temperature2, mt2: maxTokens2,
+      sp2: systemPrompt2, n2: botName2,
+      mi: maxInteractions, rd: responseDelay, dv: delayVariance, rc: repetitionCount,
+      bm: botMode, om: openingMessage, sk: stopKeywords,
+      bc1: bubbleColor1, bc2: bubbleColor2, tc1: textColor1, tc2: textColor2,
+    };
+    const encoded = btoa(JSON.stringify(payload));
+    const url = `${window.location.origin}${window.location.pathname}?cfg=${encoded}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
+    });
+  }, [model1, modelVersion1, temperature1, maxTokens1, systemPrompt1, botName1,
+      model2, modelVersion2, temperature2, maxTokens2, systemPrompt2, botName2,
+      maxInteractions, responseDelay, delayVariance, repetitionCount,
+      botMode, openingMessage, stopKeywords,
+      bubbleColor1, bubbleColor2, textColor1, textColor2]);
+
+  // Unique run tokens (conversationIds) for the current session, for survey entry
+  const runTokens = [...new Set(
+    messages.filter(m => m.conversationId).map(m => m.conversationId!)
+  )];
 
   return (
     <div className="h-screen bg-gray-100 dark:bg-gray-950 flex flex-col overflow-hidden">
@@ -449,7 +625,7 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
         />
       )}
 
-      {/* Mobile settings overlay — hidden on lg+ where sidebars are used instead */}
+      {/* Mobile settings overlay */}
       {showSettings && (
         <div className="lg:hidden fixed inset-0 z-40 bg-gray-50 dark:bg-gray-900 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
@@ -572,6 +748,18 @@ export function ResearchInterface({ onSignOut, onBack, user, isDarkMode, onToggl
               bubbleColor2={bubbleColor2}
               textColor1={textColor1}
               textColor2={textColor2}
+              // Research features
+              sessionId={sessionId}
+              conditionLabel={conditionLabel}
+              botMode={botMode}
+              onBotModeChange={setBotMode}
+              openingMessage={openingMessage}
+              onOpeningMessageChange={setOpeningMessage}
+              stopKeywords={stopKeywords}
+              onStopKeywordsChange={setStopKeywords}
+              onShareConfig={handleShareConfig}
+              shareCopied={shareCopied}
+              runTokens={!isLoading && runTokens.length > 0 ? runTokens : undefined}
             />
           </div>
 
