@@ -14,7 +14,7 @@ import { AIConfigPanel } from './AIConfigPanel';
 import { UserSettings } from './UserSettings';
 import { ConversationHistory } from './ConversationHistory';
 import { ExperimentsPanel, type Experiment } from './ExperimentsPanel';
-import { OnboardingTour } from './OnboardingTour';
+import { OnboardingTour, shouldAutoShowTour, incrementTourCount, resetTourDismissed } from './OnboardingTour';
 
 interface ResearchInterfaceProps {
   onSignOut: () => Promise<void>;
@@ -64,7 +64,11 @@ export function ResearchInterface({
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showExperiments, setShowExperiments] = useState(false);
-  const [showTour, setShowTour] = useState(() => !localStorage.getItem('ai2ai_tour_done'));
+  const [showTour, setShowTour] = useState(() => {
+    const show = shouldAutoShowTour();
+    if (show) incrementTourCount();
+    return show;
+  });
 
   // SPEC-01: currently loaded experiment
   const [currentExperimentId, setCurrentExperimentId] = useState<string | null>(null);
@@ -734,6 +738,7 @@ export function ResearchInterface({
           onOpenHistory={() => { setShowUserSettings(false); setShowHistory(true); }}
           onDataDeleted={() => { setMessages([]); setShowUserSettings(false); }}
           onAccountDeleted={() => { onSignOut(); }}
+          onRewatchTour={() => { resetTourDismissed(); incrementTourCount(); setShowTour(true); }}
         />
       )}
 
