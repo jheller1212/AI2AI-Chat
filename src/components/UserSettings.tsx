@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { X, Settings, User as UserIcon, Mail, Lock, Save, Clock, Trash2, KeyRound } from 'lucide-react';
+import { X, Settings, User as UserIcon, Mail, Lock, Save, Clock, Trash2, KeyRound, PlayCircle } from 'lucide-react';
 import { loadVault, saveVault, clearVault, type ProviderVault } from '../lib/apiKeyVault';
 
 interface UserSettingsProps {
@@ -10,9 +10,10 @@ interface UserSettingsProps {
   onOpenHistory?: () => void;
   onDataDeleted?: () => void;
   onAccountDeleted?: () => void;
+  onRewatchTour?: () => void;
 }
 
-export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAccountDeleted }: UserSettingsProps) {
+export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAccountDeleted, onRewatchTour }: UserSettingsProps) {
   const [displayName, setDisplayName] = useState(user.user_metadata?.display_name ?? '');
   const [email, setEmail] = useState(user.email ?? '');
   const [newPassword, setNewPassword] = useState('');
@@ -189,18 +190,32 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAc
           )}
         </div>
 
-        {onOpenHistory && (
-          <div className="px-6 pb-4 pt-2">
-            <button
-              onClick={onOpenHistory}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-sm"
-            >
-              <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
-                <Clock className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-                <span>Conversation History</span>
-              </div>
-              <span className="text-xs text-gray-400 dark:text-gray-500">View all past conversations →</span>
-            </button>
+        {(onOpenHistory || onRewatchTour) && (
+          <div className="px-6 pb-4 pt-2 space-y-2">
+            {onOpenHistory && (
+              <button
+                onClick={onOpenHistory}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-sm"
+              >
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <Clock className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                  <span>Conversation History</span>
+                </div>
+                <span className="text-xs text-gray-400 dark:text-gray-500">View all past conversations →</span>
+              </button>
+            )}
+            {onRewatchTour && (
+              <button
+                onClick={() => { onRewatchTour(); onClose(); }}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors text-sm"
+              >
+                <div className="flex items-center gap-2 text-gray-700 dark:text-gray-300">
+                  <PlayCircle className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                  <span>Rewatch App Tour</span>
+                </div>
+                <span className="text-xs text-gray-400 dark:text-gray-500">Replay the onboarding tour →</span>
+              </button>
+            )}
           </div>
         )}
 

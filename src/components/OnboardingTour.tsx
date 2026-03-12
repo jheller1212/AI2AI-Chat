@@ -1,9 +1,35 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle } from 'lucide-react';
 
-const TOUR_KEY = 'ai2ai_tour_done';
+const TOUR_COUNT_KEY = 'ai2ai_tour_count';
+const TOUR_DISMISSED_KEY = 'ai2ai_tour_dismissed';
+const MAX_AUTO_SHOWS = 5;
 const SPOTLIGHT_PADDING = 10;
 const TOOLTIP_WIDTH = 310;
+
+/** Returns true if the tour should auto-open (migrates the old done key). */
+export function shouldAutoShowTour(): boolean {
+  // Migrate old one-shot key
+  if (localStorage.getItem('ai2ai_tour_done')) {
+    localStorage.setItem(TOUR_DISMISSED_KEY, '1');
+    localStorage.removeItem('ai2ai_tour_done');
+  }
+  if (localStorage.getItem(TOUR_DISMISSED_KEY)) return false;
+  const count = parseInt(localStorage.getItem(TOUR_COUNT_KEY) || '0', 10);
+  return count < MAX_AUTO_SHOWS;
+}
+
+/** Increments the view count (call once when the tour is shown). */
+export function incrementTourCount(): void {
+  const count = parseInt(localStorage.getItem(TOUR_COUNT_KEY) || '0', 10);
+  localStorage.setItem(TOUR_COUNT_KEY, String(count + 1));
+}
+
+/** Resets dismissed state so the tour can auto-show again. */
+export function resetTourDismissed(): void {
+  localStorage.removeItem(TOUR_DISMISSED_KEY);
+  localStorage.setItem(TOUR_COUNT_KEY, '0');
+}
 
 interface TourStep {
   target: string | null;
@@ -21,7 +47,7 @@ const STEPS: TourStep[] = [
   {
     target: '[data-tour="bot1-panel"]',
     title: 'Configure Bot 1',
-    description: 'Choose a provider (OpenAI, Claude, Gemini, or Mistral), paste your API key, pick a model version, and write a system prompt to define this bot\'s personality or role. On mobile, tap the Settings icon in the header to open the config panels.',
+    description: "Choose a provider (OpenAI, Claude, Gemini, or Mistral), paste your API key, pick a model version, and write a system prompt to define this bot's personality or role. On mobile, tap the Settings icon in the header to open the config panels.",
     side: 'right',
   },
   {
@@ -43,6 +69,17 @@ const STEPS: TourStep[] = [
     side: 'top',
   },
   {
+    target: '[data-tour="experiments-btn"]',
+    title: 'Experiments',
+    description: 'Save your current bot setup — models, prompts, temperature, roles, and more — as a named experiment. Load it any time to run reproducible sessions. Perfect for comparing conditions across participants or across runs.',
+    side: 'bottom',
+  },
+  {
+    target: null,
+    title: 'Research-Grade Features',
+    description: "Each bot supports an asymmetric role and a custom opening message for structured dialogue. Set stop keywords to auto-end a conversation at a predefined point. In the Data tab, export a .csv with per-message timing, word counts, and model metadata for offline analysis.",
+  },
+  {
     target: '[data-tour="chat-tabs"]',
     title: 'Chat View & Data View',
     description: 'Watch the live conversation in the Chat tab. Switch to Data for real-time metrics — response times, word counts, and per-message model info. Use the Export button to download a .txt transcript or .csv file for analysis.',
@@ -62,12 +99,20 @@ interface ContentProps {
   description: string;
   isFirst: boolean;
   isLast: boolean;
+  isModal: boolean;
+  dontShowAgain: boolean;
+  onDontShowAgainChange: (v: boolean) => void;
   onPrev: () => void;
   onNext: () => void;
   onSkip: () => void;
 }
 
-function TourContent({ step, total, title, description, isFirst, isLast, onPrev, onNext, onSkip }: ContentProps) {
+function TourContent({
+  step, total, title, description,
+  isFirst, isLast, isModal,
+  dontShowAgain, onDontShowAgainChange,
+  onPrev, onNext, onSkip,
+}: ContentProps) {
   return (
     <>
       {/* Progress + skip */}
@@ -107,6 +152,19 @@ function TourContent({ step, total, title, description, isFirst, isLast, onPrev,
         <p className="text-sm text-gray-600 dark:text-gray-300 mt-1.5 leading-relaxed">{description}</p>
       </div>
 
+      {/* "Do not show again" checkbox — only on modal steps */}
+      {isModal && (isFirst || isLast) && (
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={dontShowAgain}
+            onChange={(e) => onDontShowAgainChange(e.target.checked)}
+            className="w-3.5 h-3.5 rounded accent-indigo-600"
+          />
+          <span className="text-xs text-gray-500 dark:text-gray-400">Don't show this automatically again</span>
+        </label>
+      )}
+
       <div className="flex items-center justify-between pt-1">
         <button
           onClick={onPrev}
@@ -137,6 +195,7 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [measuring, setMeasuring] = useState(false);
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [dontShowAgain, setDontShowAgain] = useState(false);
 
   const currentStep = STEPS[step];
   const isFirst = step === 0;
@@ -146,8 +205,8 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const sp = SPOTLIGHT_PADDING;
-    const tw = Math.min(TOOLTIP_WIDTH, vw - 16); // never wider than viewport
-    const th = 220; // estimated tooltip height
+    const tw = Math.min(TOOLTIP_WIDTH, vw - 16);
+    const th = 220;
 
     const spLeft = r.left - sp;
     const spTop = r.top - sp;
@@ -196,7 +255,6 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     const timer = setTimeout(() => {
       const el = document.querySelector(currentStep.target!);
       const r = el ? el.getBoundingClientRect() : null;
-      // Treat hidden elements (display:none → zero dimensions) same as missing
       if (r && r.width > 0 && r.height > 0) {
         setRect(r);
         setTooltipPos(computeTooltipPos(r, currentStep.side));
@@ -230,7 +288,9 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
   }, [measureTarget, currentStep, computeTooltipPos]);
 
   const handleDone = () => {
-    localStorage.setItem(TOUR_KEY, '1');
+    if (dontShowAgain) {
+      localStorage.setItem(TOUR_DISMISSED_KEY, '1');
+    }
     onComplete();
   };
 
@@ -253,6 +313,9 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     description: currentStep.description,
     isFirst,
     isLast,
+    isModal,
+    dontShowAgain,
+    onDontShowAgainChange: setDontShowAgain,
     onPrev: handlePrev,
     onNext: handleNext,
     onSkip: handleDone,
@@ -262,10 +325,8 @@ export function OnboardingTour({ onComplete }: OnboardingTourProps) {
     <>
       {/* Backdrop */}
       {hasSpotlight ? (
-        // Transparent click-blocker — dark effect comes from spotlight box-shadow
         <div className="fixed inset-0 z-[1000]" />
       ) : isModal ? (
-        // Solid backdrop for modal steps
         <div className="fixed inset-0 z-[1000] bg-black/70" />
       ) : null}
 
