@@ -347,9 +347,14 @@ export function ChatPanel({
       {/* Input area */}
       <div className="p-4 border-t dark:border-gray-700 space-y-3">
 
-        {/* User input — hidden in asymmetric mode when an opening message is configured */}
+        {/* Scenario prompt — hidden in asymmetric mode when an opening message is configured */}
         {!(botMode === 'asymmetric' && openingMessage.trim()) && (
-          <div data-tour="chat-input" className="flex gap-3">
+          <div data-tour="chat-input" className="space-y-1.5">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Scenario Prompt</span>
+              <InfoTooltip text="Set the stage for the AI conversation. Describe a scenario, pose a question, or provide context that both bots will use as their starting point. Leave blank to let the system prompts guide the conversation from the start." />
+            </div>
+            <div className="flex gap-3">
             <input
               type="text"
               value={userInput}
@@ -363,8 +368,8 @@ export function ChatPanel({
               disabled={isLoading}
               placeholder={
                 botMode === 'asymmetric'
-                  ? 'Context for both bots (optional — leave blank to start from system prompts)'
-                  : 'Opening message (optional — leave blank to let system prompts guide the AIs)'
+                  ? 'Scenario prompt (optional — sets the scene for both bots before they start)'
+                  : 'Scenario prompt (optional — sets the scene for the conversation, e.g. a question or topic)'
               }
               className="flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
             />
@@ -391,6 +396,7 @@ export function ChatPanel({
                 {isLoading ? 'Thinking…' : 'Send'}
               </button>
             )}
+            </div>
           </div>
         )}
 
@@ -398,7 +404,7 @@ export function ChatPanel({
         {botMode === 'asymmetric' && openingMessage.trim() && (
           <div className="flex gap-3">
             <div className="flex-1 px-3 py-2.5 border border-dashed border-amber-300 dark:border-amber-700 rounded-lg text-sm text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 truncate">
-              Bot A will open with: <em>{openingMessage.trim()}</em>
+              Scenario prompt: <em>{openingMessage.trim()}</em>
             </div>
             {isLoading && onStop ? (
               <button
