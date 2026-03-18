@@ -56,7 +56,7 @@ The operator may suspend or terminate your access at any time for any reason, in
 By creating an account, you agree to receive service-related emails including account confirmations, important notices, and occasional product updates. You may opt out of non-essential communications at any time.
 
 8. DATA & PRIVACY
-Conversation data you choose to save may be stored to provide the Service. You retain ownership of your content. The operator will not sell your personal data to third parties. Data is stored via Supabase (US servers). For full details, see the Privacy Policy at ai2aichat.netlify.app. Data retention: account data is kept until you delete your account, after which it is removed within 30 days.
+Conversation data you choose to save may be stored to provide the Service. You retain ownership of your content. The operator will not sell your personal data to third parties. Data is stored via Supabase (US servers). For full details, see the Privacy Policy at ai2aichat.com. Data retention: account data is kept until you delete your account, after which it is removed within 30 days.
 
 9. GOVERNING LAW
 These Terms are governed by the laws of the European Union and, where applicable, the laws of the country in which the operator is established. Disputes shall be subject to the exclusive jurisdiction of the competent courts of that jurisdiction. EU consumers retain the benefit of mandatory consumer protection laws in their country of residence.
