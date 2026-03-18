@@ -11,6 +11,7 @@ interface ConversationDisplayProps {
   bubbleColor2: string;
   textColor1: string;
   textColor2: string;
+  scenarioCards?: React.ReactNode;
 }
 
 function estimateTokens(wordCount: number) {
@@ -43,6 +44,7 @@ export function ConversationDisplay({
   bubbleColor2,
   textColor1,
   textColor2,
+  scenarioCards,
 }: ConversationDisplayProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
@@ -54,9 +56,10 @@ export function ConversationDisplay({
 
   if (visible.length === 0 && !isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-gray-400 dark:text-gray-500">
+      <div className="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-gray-500">
         <Bot className="w-12 h-12 mb-3" />
-        <p className="text-sm">Send a message (or leave blank) to start the conversation.</p>
+        <p className="text-sm mb-6">Send a message (or leave blank) to start the conversation.</p>
+        {scenarioCards}
       </div>
     );
   }

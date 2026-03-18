@@ -10,6 +10,8 @@ import { X } from 'lucide-react';
 import { Header } from './Header';
 import { ErrorDisplay } from './ErrorDisplay';
 import { ChatPanel } from './ChatPanel';
+import { ScenarioCards, DEMO_SCENARIOS } from './ScenarioCards';
+import type { Scenario } from './ScenarioCards';
 import { AIConfigPanel } from './AIConfigPanel';
 import { UserSettings } from './UserSettings';
 import { ConversationHistory } from './ConversationHistory';
@@ -495,6 +497,14 @@ export function ResearchInterface({
     }
   };
 
+  const handleLoadScenario = (scenario: Scenario) => {
+    setSystemPrompt1(scenario.botAPrompt);
+    setSystemPrompt2(scenario.botBPrompt);
+    setOpeningMessage(scenario.sharedPrompt);
+    setStopKeywords(scenario.stopKeywords);
+    setBotMode(scenario.botMode);
+  };
+
   const handleResetChat = () => {
     isStoppedRef.current = false;
     if (pendingTimeoutRef.current) {
@@ -958,6 +968,7 @@ export function ResearchInterface({
               currentExperimentName={currentExperimentName || undefined}
               onDetachExperiment={currentExperimentId ? () => { setCurrentExperimentId(null); setCurrentExperimentName(''); } : undefined}
               runTokens={!isLoading && runTokens.length > 0 ? runTokens : undefined}
+              scenarioCards={messages.length === 0 ? <ScenarioCards onSelect={handleLoadScenario} /> : undefined}
             />
           </div>
 

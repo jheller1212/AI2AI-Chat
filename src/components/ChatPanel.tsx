@@ -52,6 +52,7 @@ interface ChatPanelProps {
   currentExperimentName?: string;
   onDetachExperiment?: () => void;
   runTokens?: string[];
+  scenarioCards?: React.ReactNode;
 }
 
 export function ChatPanel({
@@ -99,6 +100,7 @@ export function ChatPanel({
   currentExperimentName,
   onDetachExperiment,
   runTokens,
+  scenarioCards,
 }: ChatPanelProps) {
   const conversationRef = useRef<HTMLDivElement>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -306,6 +308,7 @@ export function ChatPanel({
               bubbleColor2={bubbleColor2}
               textColor1={textColor1}
               textColor2={textColor2}
+              scenarioCards={scenarioCards}
             />
           </div>
         ) : (
@@ -386,7 +389,7 @@ export function ChatPanel({
               <button
                 onClick={onSendMessage}
                 disabled={isLoading}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                className="px-4 py-2 bg-gradient-to-r from-orange-500 to-sky-500 text-white rounded-lg hover:from-orange-400 hover:to-sky-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm shadow-sm"
               >
                 {isLoading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -418,7 +421,7 @@ export function ChatPanel({
               <button
                 onClick={onSendMessage}
                 disabled={isLoading}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                className="px-4 py-2 bg-gradient-to-r from-orange-500 to-sky-500 text-white rounded-lg hover:from-orange-400 hover:to-sky-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm shadow-sm"
               >
                 {isLoading ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
