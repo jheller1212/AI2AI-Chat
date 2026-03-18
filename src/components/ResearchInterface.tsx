@@ -315,9 +315,12 @@ export function ResearchInterface({
         onChainComplete('turn_count');
       }
     } catch (error) {
-      const msg = error instanceof Error
+      let msg = error instanceof Error
         ? (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message)
         : 'An unknown error occurred';
+      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
+        msg += ' — Troubleshooting: (1) Is your API key copied correctly and complete? (2) Is the key still active and not expired? (3) Does your API account have available credits? (4) Check your browser console for CORS errors.';
+      }
       setErrors([msg]);
       setIsLoading(false);
     }
