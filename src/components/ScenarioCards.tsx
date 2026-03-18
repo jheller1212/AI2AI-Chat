@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mic, Briefcase, Brain, Sparkles } from 'lucide-react';
+import { Mic, Briefcase, Brain, Sparkles, KeyRound } from 'lucide-react';
 
 export interface Scenario {
   id: string;
@@ -93,12 +93,19 @@ export function ScenarioCards({ onSelect }: ScenarioCardsProps) {
             </p>
             {loadedId === scenario.id && (
               <p className="text-xs text-orange-600 dark:text-orange-400 mt-2 font-medium">
-                Prompts loaded — hit Start to begin
+                Prompts loaded — hit Start Conversation
               </p>
             )}
           </button>
         ))}
       </div>
+
+      {loadedId && (
+        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+          <KeyRound className="w-3.5 h-3.5 flex-shrink-0" />
+          <span>Make sure you've entered an API key for both bots in the panels on each side before starting.</span>
+        </div>
+      )}
     </div>
   );
 }

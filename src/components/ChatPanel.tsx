@@ -396,7 +396,7 @@ export function ChatPanel({
                 ) : (
                   <Send className="w-4 h-4" />
                 )}
-                {isLoading ? 'Thinking…' : 'Send'}
+                {isLoading ? 'Thinking…' : messages.length === 0 ? 'Start Conversation' : 'Send'}
               </button>
             )}
             </div>
