@@ -20,7 +20,7 @@ const faqs = [
   },
   {
     q: "Are my API keys safe?",
-    a: "Keys are stored only in your browser's local storage — they are never sent to our servers. They are automatically cleared when you sign out.",
+    a: "Keys are encrypted with AES-256 on our server and stored securely so they persist across sessions and devices. They are only decrypted when you log in. Keys are also cleared from your browser on sign-out.",
   },
   {
     q: "Can I use it for a workshop or class?",

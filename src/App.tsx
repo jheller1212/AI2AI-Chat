@@ -7,7 +7,7 @@ import { LandingPage } from './components/LandingPage';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsOfUse } from './components/TermsOfUse';
 import { StorageNotice } from './components/StorageNotice';
-import { clearVault } from './lib/apiKeyVault';
+import { clearVault, loadVault, loadVaultFromServer, syncVaultToServer } from './lib/apiKeyVault';
 
 // Parse URL parameters once on module load so they survive re-renders.
 function parseUrlParams() {
@@ -46,15 +46,36 @@ function App() {
     localStorage.setItem('ai2ai_theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
+  // Load encrypted API keys from server, or migrate existing localStorage keys
+  const restoreVault = async () => {
+    try {
+      const serverKeys = await loadVaultFromServer();
+      const hasServerKeys = Object.values(serverKeys).some(k => k.length > 0);
+      if (!hasServerKeys) {
+        const localKeys = loadVault();
+        const hasLocalKeys = Object.values(localKeys).some(k => k.length > 0);
+        if (hasLocalKeys) {
+          await syncVaultToServer(localKeys);
+        }
+      }
+    } catch { /* non-blocking */ }
+  };
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
-      if (session) setView('app');
+      if (session) {
+        setView('app');
+        await restoreVault();
+      }
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
+      if (session) {
+        await restoreVault();
+      }
       if (!session) setView('landing');
     });
 

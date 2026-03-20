@@ -227,7 +227,7 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAc
               <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Saved API Keys</p>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              Store one key per provider. When you switch a bot's provider, its key is filled in automatically. Keys are kept in this browser only and cleared on sign-out.
+              Store one key per provider. When you switch a bot's provider, its key is filled in automatically. Keys are encrypted and stored securely so they persist across sessions and devices.
             </p>
             {(
               [

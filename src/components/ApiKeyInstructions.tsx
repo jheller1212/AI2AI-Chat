@@ -47,8 +47,8 @@ export function ApiKeyInstructions({ isOpen, onClose, instructions, modelName }:
                 <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-400">
                   <ul className="list-disc pl-5 space-y-1">
                     <li>Never share your API keys with anyone</li>
-                    <li>API keys are stored locally in your browser only</li>
-                    <li>We do not collect, store, or transmit your API keys</li>
+                    <li>API keys are encrypted (AES-256) and stored securely on our server</li>
+                    <li>Keys persist across sessions and devices when you're signed in</li>
                     <li>Treat your API keys like passwords</li>
                     <li>Regularly rotate your API keys for better security</li>
                   </ul>
