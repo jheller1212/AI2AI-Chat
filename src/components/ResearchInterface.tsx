@@ -149,12 +149,29 @@ export function ResearchInterface({
 
   // Check if user is a workshop organizer
   useEffect(() => {
-    supabase.functions.invoke('workshop-config', { body: { action: 'check-organizer' } })
-      .then((res) => {
-        const result = res.data;
-        if (result?.isOrganizer) setIsOrganizer(true);
-      })
-      .catch(() => {});
+    const checkOrganizer = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const resp = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/workshop-config`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ action: 'check-organizer' }),
+          }
+        );
+        if (resp.ok) {
+          const result = await resp.json();
+          if (result?.isOrganizer) setIsOrganizer(true);
+        }
+      } catch { /* ignore */ }
+    };
+    checkOrganizer();
   }, []);
 
   // Workshop mode: apply scenario and model config on mount
