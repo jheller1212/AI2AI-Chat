@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const ADMIN_EMAIL = 'jonasheller89@gmail.com';
+const SUPER_ADMIN = 'jonasheller89@gmail.com';
 
 const ALLOWED_ORIGINS = [
   'https://ai2aichat.com',
@@ -60,6 +60,16 @@ function jsonResponse(body: unknown, status: number, headers: Record<string, str
   });
 }
 
+async function isOrganizer(admin: any, email: string): Promise<boolean> {
+  if (email === SUPER_ADMIN) return true;
+  const { data } = await admin
+    .from('workshop_organizers')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle();
+  return !!data;
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -94,7 +104,13 @@ Deno.serve(async (req) => {
     const body = await req.json();
     const { action } = body;
 
-    // === GET: fetch workshop config by code ===
+    // === CHECK: is current user an organizer? ===
+    if (action === 'check-organizer') {
+      const organizer = await isOrganizer(admin, user.email || '');
+      return jsonResponse({ isOrganizer: organizer }, 200, corsHeaders);
+    }
+
+    // === GET: fetch workshop config by code (any authenticated user) ===
     if (action === 'get') {
       const { code } = body;
       if (!code || typeof code !== 'string') {
@@ -112,7 +128,6 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Workshop not found' }, 404, corsHeaders);
       }
 
-      // Decrypt the API key
       const cryptoKey = await deriveKey(encryptionSecret, `workshop-${data.id}`);
       let apiKey: string;
       try {
@@ -131,9 +146,27 @@ Deno.serve(async (req) => {
       }, 200, corsHeaders);
     }
 
-    // === CREATE: admin only ===
+    // === LIST: organizers only ===
+    if (action === 'list') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const { data, error } = await admin
+        .from('workshops')
+        .select('code, name, welcome, provider, active, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return jsonResponse({ error: 'Failed to list workshops' }, 500, corsHeaders);
+      }
+
+      return jsonResponse({ workshops: data || [] }, 200, corsHeaders);
+    }
+
+    // === CREATE: organizers only ===
     if (action === 'create') {
-      if (user.email !== ADMIN_EMAIL) {
+      if (!await isOrganizer(admin, user.email || '')) {
         return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
       }
 
@@ -142,7 +175,6 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Missing required fields (code, name, apiKey)' }, 400, corsHeaders);
       }
 
-      // Insert first to get the ID for the encryption salt
       const { data: inserted, error: insertError } = await admin
         .from('workshops')
         .insert({
@@ -159,10 +191,10 @@ Deno.serve(async (req) => {
         .single();
 
       if (insertError) {
-        return jsonResponse({ error: insertError.message }, 500, corsHeaders);
+        const msg = insertError.message.includes('unique') ? 'A workshop with this code already exists' : insertError.message;
+        return jsonResponse({ error: msg }, 500, corsHeaders);
       }
 
-      // Encrypt the API key with the workshop ID as salt
       const cryptoKey = await deriveKey(encryptionSecret, `workshop-${inserted.id}`);
       const encryptedKey = await encrypt(cryptoKey, apiKey);
 
@@ -174,9 +206,9 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true, code }, 200, corsHeaders);
     }
 
-    // === UPDATE: admin only, update API key or config ===
+    // === UPDATE: organizers only ===
     if (action === 'update') {
-      if (user.email !== ADMIN_EMAIL) {
+      if (!await isOrganizer(admin, user.email || '')) {
         return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
       }
 
@@ -209,6 +241,28 @@ Deno.serve(async (req) => {
       }
 
       await admin.from('workshops').update(updates).eq('id', existing.id);
+
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
+    // === ADD-ORGANIZER: super admin only ===
+    if (action === 'add-organizer') {
+      if (user.email !== SUPER_ADMIN) {
+        return jsonResponse({ error: 'Only the super admin can add organizers' }, 403, corsHeaders);
+      }
+
+      const { email } = body;
+      if (!email) {
+        return jsonResponse({ error: 'Missing email' }, 400, corsHeaders);
+      }
+
+      const { error } = await admin
+        .from('workshop_organizers')
+        .upsert({ email: email.toLowerCase().trim(), added_by: user.id }, { onConflict: 'email' });
+
+      if (error) {
+        return jsonResponse({ error: error.message }, 500, corsHeaders);
+      }
 
       return jsonResponse({ success: true }, 200, corsHeaders);
     }

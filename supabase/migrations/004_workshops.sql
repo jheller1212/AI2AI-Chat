@@ -14,3 +14,14 @@ create table if not exists public.workshops (
 
 alter table public.workshops enable row level security;
 -- No RLS policies = only service role (edge functions) can access.
+
+-- Workshop organizers: any email in this table can create/manage workshops
+create table if not exists public.workshop_organizers (
+  id          uuid primary key default gen_random_uuid(),
+  email       text not null unique,
+  added_by    uuid references auth.users(id),
+  created_at  timestamptz not null default now()
+);
+
+alter table public.workshop_organizers enable row level security;
+-- No RLS policies = only service role (edge functions) can access.

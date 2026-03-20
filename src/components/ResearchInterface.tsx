@@ -19,6 +19,7 @@ import { ExperimentsPanel, type Experiment } from './ExperimentsPanel';
 import { OnboardingTour, shouldAutoShowTour, incrementTourCount, resetTourDismissed } from './OnboardingTour';
 
 import { WorkshopBanner } from './WorkshopBanner';
+import { WorkshopAdmin } from './WorkshopAdmin';
 import type { WorkshopData } from '../App';
 
 interface ResearchInterfaceProps {
@@ -70,6 +71,8 @@ export function ResearchInterface({
   const [showUserSettings, setShowUserSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showExperiments, setShowExperiments] = useState(false);
+  const [showWorkshopAdmin, setShowWorkshopAdmin] = useState(false);
+  const [isOrganizer, setIsOrganizer] = useState(false);
   const [showTour, setShowTour] = useState(() => {
     const show = shouldAutoShowTour();
     if (show) incrementTourCount();
@@ -143,6 +146,13 @@ export function ResearchInterface({
 
   // SPEC-04: track stopping trigger per conversation (conversationId → trigger string)
   const [stoppingTriggers, setStoppingTriggers] = useState<Record<string, string>>({});
+
+  // Check if user is a workshop organizer
+  useEffect(() => {
+    supabase.functions.invoke('workshop-config', { body: { action: 'check-organizer' } })
+      .then(({ data }) => { if (data?.isOrganizer) setIsOrganizer(true); })
+      .catch(() => {});
+  }, []);
 
   // Workshop mode: apply scenario and model config on mount
   const workshopAppliedRef = useRef(false);
@@ -779,6 +789,8 @@ export function ResearchInterface({
         onOpenUserSettings={() => setShowUserSettings(true)}
         onOpenHistory={() => setShowHistory(true)}
         onOpenExperiments={() => setShowExperiments(true)}
+        onOpenWorkshops={() => setShowWorkshopAdmin(true)}
+        isOrganizer={isOrganizer}
         user={user}
         isDarkMode={isDarkMode}
         onToggleDarkMode={onToggleDarkMode}
@@ -793,6 +805,10 @@ export function ResearchInterface({
           onAccountDeleted={() => { onSignOut(); }}
           onRewatchTour={() => { resetTourDismissed(); incrementTourCount(); setShowTour(true); }}
         />
+      )}
+
+      {showWorkshopAdmin && (
+        <WorkshopAdmin onClose={() => setShowWorkshopAdmin(false)} />
       )}
 
       {showHistory && (

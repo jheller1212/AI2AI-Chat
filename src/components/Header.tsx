@@ -1,6 +1,6 @@
 import React from 'react';
 import type { User } from '@supabase/supabase-js';
-import { Settings, SlidersHorizontal, ArrowLeft, UserCircle, Clock, Moon, Sun, FlaskConical } from 'lucide-react';
+import { Settings, SlidersHorizontal, ArrowLeft, UserCircle, Clock, Moon, Sun, FlaskConical, GraduationCap } from 'lucide-react';
 import { Logo } from './Logo';
 
 interface HeaderProps {
@@ -10,12 +10,14 @@ interface HeaderProps {
   onOpenUserSettings: () => void;
   onOpenHistory: () => void;
   onOpenExperiments: () => void;
+  onOpenWorkshops?: () => void;
+  isOrganizer?: boolean;
   user: User;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
 }
 
-export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings, onOpenHistory, onOpenExperiments, user, isDarkMode, onToggleDarkMode }: HeaderProps) {
+export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings, onOpenHistory, onOpenExperiments, onOpenWorkshops, isOrganizer, user, isDarkMode, onToggleDarkMode }: HeaderProps) {
   const displayName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'Account';
 
   return (
@@ -32,6 +34,17 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
           <Logo />
         </div>
         <div className="flex items-center gap-2">
+          {isOrganizer && onOpenWorkshops && (
+            <button
+              onClick={onOpenWorkshops}
+              aria-label="Workshop manager"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+              title="Workshop manager"
+            >
+              <GraduationCap className="w-4 h-4" />
+              <span className="hidden sm:block">Workshops</span>
+            </button>
+          )}
           <button
             data-tour="experiments-btn"
             onClick={onOpenExperiments}
