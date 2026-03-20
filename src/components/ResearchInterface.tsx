@@ -18,6 +18,9 @@ import { ConversationHistory } from './ConversationHistory';
 import { ExperimentsPanel, type Experiment } from './ExperimentsPanel';
 import { OnboardingTour, shouldAutoShowTour, incrementTourCount, resetTourDismissed } from './OnboardingTour';
 
+import { WorkshopBanner } from './WorkshopBanner';
+import type { WorkshopData } from '../App';
+
 interface ResearchInterfaceProps {
   onSignOut: () => Promise<void>;
   onBack: () => void;
@@ -29,6 +32,7 @@ interface ResearchInterfaceProps {
   conditionLabel?: string;
   // SPEC-06: pre-parsed shared config payload from ?cfg= URL param
   sharedConfig?: Record<string, unknown>;
+  workshopData?: WorkshopData | null;
 }
 
 const STORAGE_KEY = 'ai2ai_settings';
@@ -58,7 +62,7 @@ function scBool(cfg: Record<string, unknown> | undefined, key: string): boolean 
 
 export function ResearchInterface({
   onSignOut, onBack, user, isDarkMode, onToggleDarkMode,
-  sessionId, conditionLabel, sharedConfig,
+  sessionId, conditionLabel, sharedConfig, workshopData,
 }: ResearchInterfaceProps) {
   const saved = loadSettings();
 
@@ -139,6 +143,41 @@ export function ResearchInterface({
 
   // SPEC-04: track stopping trigger per conversation (conversationId → trigger string)
   const [stoppingTriggers, setStoppingTriggers] = useState<Record<string, string>>({});
+
+  // Workshop mode: apply scenario and model config on mount
+  const workshopAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!workshopData || workshopAppliedRef.current) return;
+    workshopAppliedRef.current = true;
+
+    if (workshopData.scenario) {
+      const s = workshopData.scenario;
+      if (s.botAPrompt) setSystemPrompt1(s.botAPrompt);
+      if (s.botBPrompt) setSystemPrompt2(s.botBPrompt);
+      if (s.sharedPrompt) setUserInput(s.sharedPrompt);
+      if (s.stopKeywords) setStopKeywords(s.stopKeywords);
+      if (s.botMode) setBotMode(s.botMode);
+    }
+
+    // Apply model config overrides if provided
+    if (workshopData.config) {
+      const c = workshopData.config;
+      if (c.m1) setModel1(c.m1 as AIModel);
+      if (c.m2) setModel2(c.m2 as AIModel);
+      if (c.mv1) setModelVersion1(c.mv1 as string);
+      if (c.mv2) setModelVersion2(c.mv2 as string);
+      if (typeof c.t1 === 'number') setTemperature1(c.t1);
+      if (typeof c.t2 === 'number') setTemperature2(c.t2);
+      if (c.n1) setBotName1(c.n1 as string);
+      if (c.n2) setBotName2(c.n2 as string);
+    }
+
+    // Set both bot API keys to the workshop key
+    if (workshopData.apiKey) {
+      setApiKey1(workshopData.apiKey);
+      setApiKey2(workshopData.apiKey);
+    }
+  }, [workshopData]);
 
   // SPEC-06: share-link copied toast
   const [shareCopied, setShareCopied] = useState(false);
@@ -732,6 +771,7 @@ export function ResearchInterface({
   return (
     <div className="h-screen bg-gray-100 dark:bg-gray-950 flex flex-col overflow-hidden">
       {showTour && <OnboardingTour onComplete={() => setShowTour(false)} />}
+      {workshopData && <WorkshopBanner name={workshopData.name} welcome={workshopData.welcome} />}
       <Header
         onBack={onBack}
         onSignOut={onSignOut}

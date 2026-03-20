@@ -7,19 +7,30 @@ import { LandingPage } from './components/LandingPage';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
 import { TermsOfUse } from './components/TermsOfUse';
 import { StorageNotice } from './components/StorageNotice';
-import { clearVault, loadVault, loadVaultFromServer, syncVaultToServer } from './lib/apiKeyVault';
+import { clearVault, loadVault, loadVaultFromServer, syncVaultToServer, saveVault } from './lib/apiKeyVault';
+import type { ProviderVault } from './lib/apiKeyVault';
+
+export interface WorkshopData {
+  name: string;
+  welcome: string;
+  provider: string;
+  apiKey: string;
+  scenario: { botAPrompt: string; botBPrompt: string; sharedPrompt: string; stopKeywords: string; botMode: 'symmetric' | 'asymmetric' } | null;
+  config: Record<string, unknown> | null;
+}
 
 // Parse URL parameters once on module load so they survive re-renders.
 function parseUrlParams() {
   const p = new URLSearchParams(window.location.search);
   const sessionId = p.get('session_id') ?? undefined;
   const conditionLabel = p.get('condition') ?? undefined;
+  const workshop = p.get('workshop') ?? undefined;
   let sharedConfig: Record<string, unknown> | undefined;
   const cfg = p.get('cfg');
   if (cfg) {
     try { sharedConfig = JSON.parse(atob(cfg)); } catch { /* invalid — ignore */ }
   }
-  return { sessionId, conditionLabel, sharedConfig };
+  return { sessionId, conditionLabel, sharedConfig, workshop };
 }
 
 const URL_PARAMS = parseUrlParams();
@@ -31,6 +42,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('landing');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
+  const [workshopData, setWorkshopData] = useState<WorkshopData | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const stored = localStorage.getItem('ai2ai_theme');
     if (stored) return stored === 'dark';
@@ -61,12 +73,35 @@ function App() {
     } catch { /* non-blocking */ }
   };
 
+  // Fetch workshop config and inject API key into vault
+  const loadWorkshop = async () => {
+    if (!URL_PARAMS.workshop) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('workshop-config', {
+        body: { action: 'get', code: URL_PARAMS.workshop },
+      });
+      if (error || !data || data.error) return;
+
+      setWorkshopData(data as WorkshopData);
+
+      // Inject the workshop API key into the user's vault
+      if (data.apiKey && data.provider) {
+        const vault = loadVault();
+        const provider = data.provider as keyof ProviderVault;
+        if (provider in vault) {
+          saveVault({ ...vault, [provider]: data.apiKey });
+        }
+      }
+    } catch { /* non-blocking */ }
+  };
+
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session) {
         setView('app');
         await restoreVault();
+        await loadWorkshop();
       }
       setLoading(false);
     });
@@ -75,6 +110,7 @@ function App() {
       setSession(session);
       if (session) {
         await restoreVault();
+        await loadWorkshop();
       }
       if (!session) setView('landing');
     });
@@ -105,8 +141,6 @@ function App() {
   }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSignOut = async () => {
-    // Clear all API keys from localStorage before signing out so they are not
-    // left behind on shared/public devices.
     try {
       const raw = localStorage.getItem('ai2ai_settings');
       if (raw) {
@@ -128,6 +162,11 @@ function App() {
 
   const storageNotice = <StorageNotice onPrivacyClick={() => setView('privacy')} />;
 
+  // Workshop link: skip landing page, go straight to auth
+  if (view === 'landing' && URL_PARAMS.workshop && !session) {
+    return <>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} /></>;
+  }
+
   if (view === 'auth') {
     return <>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} /></>;
   }
@@ -145,6 +184,7 @@ function App() {
           sessionId={URL_PARAMS.sessionId}
           conditionLabel={URL_PARAMS.conditionLabel}
           sharedConfig={URL_PARAMS.sharedConfig}
+          workshopData={workshopData}
         />
       </>
     );

@@ -1,0 +1,220 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const ADMIN_EMAIL = 'jonasheller89@gmail.com';
+
+const ALLOWED_ORIGINS = [
+  'https://ai2aichat.com',
+  'https://www.ai2aichat.com',
+  'https://ai2ai-chat.netlify.app',
+];
+
+function getCorsHeaders(req: Request) {
+  const origin = req.headers.get('Origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+}
+
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+async function deriveKey(secret: string, salt: string): Promise<CryptoKey> {
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', enc.encode(secret), 'HKDF', false, ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'HKDF', hash: 'SHA-256', salt: enc.encode(salt), info: enc.encode('workshop-keys-v1') },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encrypt(key: CryptoKey, plaintext: string): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv }, key, enc.encode(plaintext)
+  ));
+  const combined = new Uint8Array(iv.length + ct.length);
+  combined.set(iv);
+  combined.set(ct, iv.length);
+  return btoa(String.fromCharCode(...combined));
+}
+
+async function decrypt(key: CryptoKey, encoded: string): Promise<string> {
+  const raw = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+  const iv = raw.slice(0, 12);
+  const ct = raw.slice(12);
+  const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ct);
+  return dec.decode(plain);
+}
+
+function jsonResponse(body: unknown, status: number, headers: Record<string, string>) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...headers, 'Content-Type': 'application/json' },
+  });
+}
+
+Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return jsonResponse({ error: 'Missing authorization header' }, 401, corsHeaders);
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const encryptionSecret = Deno.env.get('API_KEYS_ENCRYPTION_SECRET');
+
+    if (!encryptionSecret) {
+      return jsonResponse({ error: 'Server configuration error' }, 500, corsHeaders);
+    }
+
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: userError } = await admin.auth.getUser(token);
+    if (userError || !user) {
+      return jsonResponse({ error: 'Invalid token' }, 401, corsHeaders);
+    }
+
+    const body = await req.json();
+    const { action } = body;
+
+    // === GET: fetch workshop config by code ===
+    if (action === 'get') {
+      const { code } = body;
+      if (!code || typeof code !== 'string') {
+        return jsonResponse({ error: 'Missing workshop code' }, 400, corsHeaders);
+      }
+
+      const { data, error } = await admin
+        .from('workshops')
+        .select('id, code, name, welcome, api_key, provider, scenario, config, active')
+        .eq('code', code.toLowerCase().trim())
+        .eq('active', true)
+        .maybeSingle();
+
+      if (error || !data) {
+        return jsonResponse({ error: 'Workshop not found' }, 404, corsHeaders);
+      }
+
+      // Decrypt the API key
+      const cryptoKey = await deriveKey(encryptionSecret, `workshop-${data.id}`);
+      let apiKey: string;
+      try {
+        apiKey = await decrypt(cryptoKey, data.api_key);
+      } catch {
+        return jsonResponse({ error: 'Failed to decrypt workshop key' }, 500, corsHeaders);
+      }
+
+      return jsonResponse({
+        name: data.name,
+        welcome: data.welcome,
+        provider: data.provider,
+        apiKey,
+        scenario: data.scenario,
+        config: data.config,
+      }, 200, corsHeaders);
+    }
+
+    // === CREATE: admin only ===
+    if (action === 'create') {
+      if (user.email !== ADMIN_EMAIL) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const { code, name, welcome, apiKey, provider, scenario, config } = body;
+      if (!code || !name || !apiKey) {
+        return jsonResponse({ error: 'Missing required fields (code, name, apiKey)' }, 400, corsHeaders);
+      }
+
+      // Insert first to get the ID for the encryption salt
+      const { data: inserted, error: insertError } = await admin
+        .from('workshops')
+        .insert({
+          code: code.toLowerCase().trim(),
+          name,
+          welcome: welcome || '',
+          api_key: 'placeholder',
+          provider: provider || 'gpt4',
+          scenario: scenario || null,
+          config: config || null,
+          created_by: user.id,
+        })
+        .select('id')
+        .single();
+
+      if (insertError) {
+        return jsonResponse({ error: insertError.message }, 500, corsHeaders);
+      }
+
+      // Encrypt the API key with the workshop ID as salt
+      const cryptoKey = await deriveKey(encryptionSecret, `workshop-${inserted.id}`);
+      const encryptedKey = await encrypt(cryptoKey, apiKey);
+
+      await admin
+        .from('workshops')
+        .update({ api_key: encryptedKey })
+        .eq('id', inserted.id);
+
+      return jsonResponse({ success: true, code }, 200, corsHeaders);
+    }
+
+    // === UPDATE: admin only, update API key or config ===
+    if (action === 'update') {
+      if (user.email !== ADMIN_EMAIL) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const { code, apiKey, name, welcome, provider, scenario, config, active } = body;
+      if (!code) {
+        return jsonResponse({ error: 'Missing workshop code' }, 400, corsHeaders);
+      }
+
+      const { data: existing } = await admin
+        .from('workshops')
+        .select('id')
+        .eq('code', code.toLowerCase().trim())
+        .maybeSingle();
+
+      if (!existing) {
+        return jsonResponse({ error: 'Workshop not found' }, 404, corsHeaders);
+      }
+
+      const updates: Record<string, unknown> = {};
+      if (name !== undefined) updates.name = name;
+      if (welcome !== undefined) updates.welcome = welcome;
+      if (provider !== undefined) updates.provider = provider;
+      if (scenario !== undefined) updates.scenario = scenario;
+      if (config !== undefined) updates.config = config;
+      if (active !== undefined) updates.active = active;
+
+      if (apiKey) {
+        const cryptoKey = await deriveKey(encryptionSecret, `workshop-${existing.id}`);
+        updates.api_key = await encrypt(cryptoKey, apiKey);
+      }
+
+      await admin.from('workshops').update(updates).eq('id', existing.id);
+
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
+    return jsonResponse({ error: 'Invalid action' }, 400, corsHeaders);
+  } catch {
+    return jsonResponse({ error: 'Internal server error' }, 500, getCorsHeaders(req));
+  }
+});
