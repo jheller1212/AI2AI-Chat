@@ -79,11 +79,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return jsonResponse({ error: 'Missing authorization header' }, 401, corsHeaders);
-    }
-
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const encryptionSecret = Deno.env.get('API_KEYS_ENCRYPTION_SECRET');
@@ -96,14 +91,41 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    const body = await req.json();
+    const { action } = body;
+
+    // === GET-PUBLIC: no auth required, returns only name + welcome ===
+    if (action === 'get-public') {
+      const { code } = body;
+      if (!code || typeof code !== 'string') {
+        return jsonResponse({ error: 'Missing workshop code' }, 400, corsHeaders);
+      }
+
+      const { data, error } = await admin
+        .from('workshops')
+        .select('name, welcome')
+        .eq('code', code.toLowerCase().trim())
+        .eq('active', true)
+        .maybeSingle();
+
+      if (error || !data) {
+        return jsonResponse({ error: 'Workshop not found' }, 404, corsHeaders);
+      }
+
+      return jsonResponse({ name: data.name, welcome: data.welcome }, 200, corsHeaders);
+    }
+
+    // All other actions require auth
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return jsonResponse({ error: 'Missing authorization header' }, 401, corsHeaders);
+    }
+
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: userError } = await admin.auth.getUser(token);
     if (userError || !user) {
       return jsonResponse({ error: 'Invalid token' }, 401, corsHeaders);
     }
-
-    const body = await req.json();
-    const { action } = body;
 
     // === CHECK: is current user an organizer? ===
     if (action === 'check-organizer') {
@@ -264,6 +286,21 @@ Deno.serve(async (req) => {
       if (error) {
         return jsonResponse({ error: error.message }, 500, corsHeaders);
       }
+
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
+    // === TRACK-SIGNUP: record that a user signed up via a workshop link ===
+    if (action === 'track-signup') {
+      const { code } = body;
+      if (!code || typeof code !== 'string') {
+        return jsonResponse({ error: 'Missing workshop code' }, 400, corsHeaders);
+      }
+
+      await admin.from('workshop_signups').insert({
+        user_id: user.id,
+        workshop_code: code.toLowerCase().trim(),
+      });
 
       return jsonResponse({ success: true }, 200, corsHeaders);
     }

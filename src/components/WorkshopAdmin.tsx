@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Copy, Check, ToggleLeft, ToggleRight } from 'lucide-react';
+import { X, Plus, Copy, Check, ToggleLeft, ToggleRight, KeyRound } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { loadVault } from '../lib/apiKeyVault';
+import type { ProviderVault } from '../lib/apiKeyVault';
 
 const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/workshop-config`;
 
@@ -49,6 +51,7 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
   const [newApiKey, setNewApiKey] = useState('');
   const [newProvider, setNewProvider] = useState('gpt4');
   const [creating, setCreating] = useState(false);
+  const [savedKeys, setSavedKeys] = useState<ProviderVault | null>(null);
 
   const fetchWorkshops = useCallback(async () => {
     setLoading(true);
@@ -64,6 +67,19 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
   }, []);
 
   useEffect(() => { fetchWorkshops(); }, [fetchWorkshops]);
+
+  // Load vault keys when the create form is opened
+  useEffect(() => {
+    if (showCreate && !savedKeys) {
+      const vault = loadVault();
+      setSavedKeys(vault);
+      // Auto-fill if the currently selected provider has a saved key
+      const providerKey = vault[newProvider as keyof ProviderVault];
+      if (providerKey && !newApiKey) {
+        setNewApiKey(providerKey);
+      }
+    }
+  }, [showCreate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -146,7 +162,15 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Provider</label>
                   <select
                     value={newProvider}
-                    onChange={e => setNewProvider(e.target.value)}
+                    onChange={e => {
+                      const p = e.target.value;
+                      setNewProvider(p);
+                      // Auto-fill API key if the user has a saved key for this provider
+                      if (savedKeys) {
+                        const key = savedKeys[p as keyof ProviderVault];
+                        if (key) setNewApiKey(key);
+                      }
+                    }}
                     className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     <option value="gpt4">OpenAI</option>
@@ -186,6 +210,31 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
                   required
                   className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
                 />
+                {savedKeys && Object.values(savedKeys).some(k => k.length > 0) && (
+                  <div className="mt-2">
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1 flex items-center gap-1">
+                      <KeyRound className="w-3 h-3" />
+                      Use saved key
+                    </label>
+                    <select
+                      value=""
+                      onChange={e => {
+                        const provider = e.target.value as keyof ProviderVault;
+                        if (provider && savedKeys[provider]) {
+                          setNewApiKey(savedKeys[provider]);
+                          setNewProvider(provider);
+                        }
+                      }}
+                      className="w-full px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    >
+                      <option value="">-- Select a saved key --</option>
+                      {savedKeys.gpt4 && <option value="gpt4">OpenAI ({savedKeys.gpt4.slice(0, 8)}...)</option>}
+                      {savedKeys.claude && <option value="claude">Anthropic ({savedKeys.claude.slice(0, 8)}...)</option>}
+                      {savedKeys.gemini && <option value="gemini">Google Gemini ({savedKeys.gemini.slice(0, 8)}...)</option>}
+                      {savedKeys.mistral && <option value="mistral">Mistral ({savedKeys.mistral.slice(0, 8)}...)</option>}
+                    </select>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-2">
                 <button

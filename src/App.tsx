@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
 import { Auth } from './components/Auth';
+import type { WorkshopPublicInfo } from './components/Auth';
 import { ResearchInterface } from './components/ResearchInterface';
 import { LandingPage } from './components/LandingPage';
 import { PrivacyPolicy } from './components/PrivacyPolicy';
@@ -43,6 +44,7 @@ function App() {
   const [view, setView] = useState<View>('landing');
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signup');
   const [workshopData, setWorkshopData] = useState<WorkshopData | null>(null);
+  const [workshopPublicInfo, setWorkshopPublicInfo] = useState<WorkshopPublicInfo | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const stored = localStorage.getItem('ai2ai_theme');
     if (stored) return stored === 'dark';
@@ -95,6 +97,42 @@ function App() {
     } catch { /* non-blocking */ }
   };
 
+  // Fetch public workshop info (no auth needed) for the sign-up banner
+  const loadWorkshopPublicInfo = async () => {
+    if (!URL_PARAMS.workshop) return;
+    try {
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/workshop-config`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'get-public', code: URL_PARAMS.workshop }),
+      });
+      const data = await resp.json();
+      if (resp.ok && data.name) {
+        setWorkshopPublicInfo({ name: data.name, welcome: data.welcome || '' });
+      }
+    } catch { /* non-blocking */ }
+  };
+
+  // Fire-and-forget: track that a user signed up via a workshop link
+  const trackWorkshopSignup = async (accessToken: string) => {
+    if (!URL_PARAMS.workshop) return;
+    try {
+      await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/workshop-config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ action: 'track-signup', code: URL_PARAMS.workshop }),
+      });
+    } catch { /* non-blocking */ }
+  };
+
+  useEffect(() => {
+    // Fetch public workshop info immediately (before auth)
+    loadWorkshopPublicInfo().catch(() => {});
+  }, []);
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -111,6 +149,7 @@ function App() {
       if (session) {
         restoreVault().catch(() => {});
         loadWorkshop().catch(() => {});
+        trackWorkshopSignup(session.access_token).catch(() => {});
       }
       if (!session) setView('landing');
     });
@@ -164,11 +203,11 @@ function App() {
 
   // Workshop link: skip landing page, go straight to auth
   if (view === 'landing' && URL_PARAMS.workshop && !session) {
-    return <>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} /></>;
+    return <>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} workshopInfo={workshopPublicInfo} /></>;
   }
 
   if (view === 'auth') {
-    return <>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} /></>;
+    return <>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} workshopInfo={workshopPublicInfo} /></>;
   }
 
   if (view === 'app' && session) {

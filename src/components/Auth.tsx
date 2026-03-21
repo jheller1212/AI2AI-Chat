@@ -17,9 +17,15 @@ const GitHubIcon = () => (
   </svg>
 );
 
+export interface WorkshopPublicInfo {
+  name: string;
+  welcome: string;
+}
+
 interface AuthProps {
   onAuthSuccess: () => void;
   initialIsSignUp?: boolean;
+  workshopInfo?: WorkshopPublicInfo | null;
 }
 
 const TERMS_TEXT = `TERMS OF USE & USER AGREEMENT
@@ -64,7 +70,7 @@ These Terms are governed by the laws of the European Union and, where applicable
 10. CHANGES TO TERMS
 These Terms may be updated from time to time. We will notify you by email or in-app notice for material changes. Continued use of the Service after the effective date constitutes acceptance of the revised terms.`;
 
-export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
+export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: AuthProps) {
   const [isSignUp, setIsSignUp] = useState(initialIsSignUp);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -203,6 +209,14 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false }: AuthProps) {
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-xl shadow-lg">
+        {workshopInfo && (
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center space-y-1">
+            <h3 className="text-lg font-semibold text-indigo-900">{workshopInfo.name}</h3>
+            {workshopInfo.welcome && (
+              <p className="text-sm text-indigo-700">{workshopInfo.welcome}</p>
+            )}
+          </div>
+        )}
         <div className="text-center">
           <LogIn className="mx-auto h-12 w-12 text-indigo-600" />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
