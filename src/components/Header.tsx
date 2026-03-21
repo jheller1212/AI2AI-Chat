@@ -1,6 +1,6 @@
 import React from 'react';
 import type { User } from '@supabase/supabase-js';
-import { Settings, SlidersHorizontal, ArrowLeft, UserCircle, Clock, Moon, Sun, FlaskConical, GraduationCap } from 'lucide-react';
+import { Settings, SlidersHorizontal, ArrowLeft, UserCircle, Clock, Moon, Sun, FlaskConical, GraduationCap, BarChart3 } from 'lucide-react';
 import { Logo } from './Logo';
 
 interface HeaderProps {
@@ -11,13 +11,14 @@ interface HeaderProps {
   onOpenHistory: () => void;
   onOpenExperiments: () => void;
   onOpenWorkshops?: () => void;
+  onOpenAdmin?: () => void;
   isOrganizer?: boolean;
   user: User;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
 }
 
-export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings, onOpenHistory, onOpenExperiments, onOpenWorkshops, isOrganizer, user, isDarkMode, onToggleDarkMode }: HeaderProps) {
+export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings, onOpenHistory, onOpenExperiments, onOpenWorkshops, onOpenAdmin, isOrganizer, user, isDarkMode, onToggleDarkMode }: HeaderProps) {
   const displayName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'Account';
 
   return (
@@ -34,6 +35,17 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
           <Logo />
         </div>
         <div className="flex items-center gap-2">
+          {isOrganizer && onOpenAdmin && (
+            <button
+              onClick={onOpenAdmin}
+              aria-label="Admin dashboard"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 rounded-lg transition-colors shadow-sm"
+              title="Admin dashboard"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Analytics</span>
+            </button>
+          )}
           {isOrganizer && onOpenWorkshops && (
             <button
               onClick={onOpenWorkshops}
