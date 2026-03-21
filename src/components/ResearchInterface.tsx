@@ -20,6 +20,7 @@ import { OnboardingTour, shouldAutoShowTour, incrementTourCount, resetTourDismis
 
 import { WorkshopBanner } from './WorkshopBanner';
 import { WorkshopAdmin } from './WorkshopAdmin';
+import { AdminDashboard } from './AdminDashboard';
 import type { WorkshopData } from '../App';
 
 interface ResearchInterfaceProps {
@@ -72,6 +73,7 @@ export function ResearchInterface({
   const [showHistory, setShowHistory] = useState(false);
   const [showExperiments, setShowExperiments] = useState(false);
   const [showWorkshopAdmin, setShowWorkshopAdmin] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const [isOrganizer, setIsOrganizer] = useState(false);
   const [showTour, setShowTour] = useState(() => {
     const show = shouldAutoShowTour();
@@ -810,6 +812,7 @@ export function ResearchInterface({
         onOpenHistory={() => setShowHistory(true)}
         onOpenExperiments={() => setShowExperiments(true)}
         onOpenWorkshops={() => setShowWorkshopAdmin(true)}
+        onOpenAdmin={() => setShowAdminDashboard(true)}
         isOrganizer={isOrganizer}
         user={user}
         isDarkMode={isDarkMode}
@@ -829,6 +832,10 @@ export function ResearchInterface({
 
       {showWorkshopAdmin && (
         <WorkshopAdmin onClose={() => setShowWorkshopAdmin(false)} />
+      )}
+
+      {showAdminDashboard && (
+        <AdminDashboard onClose={() => setShowAdminDashboard(false)} />
       )}
 
       {showHistory && (

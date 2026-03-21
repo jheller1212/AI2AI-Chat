@@ -357,6 +357,120 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true }, 200, corsHeaders);
     }
 
+    // === ADMIN-STATS: organizers only — analytics dashboard ===
+    if (action === 'admin-stats') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const { period } = body as { period?: string };
+
+      // Build date filter
+      let dateFilter: string | null = null;
+      if (period === 'day') {
+        const d = new Date();
+        d.setHours(0, 0, 0, 0);
+        dateFilter = d.toISOString();
+      } else if (period === 'week') {
+        const d = new Date();
+        d.setDate(d.getDate() - 6);
+        d.setHours(0, 0, 0, 0);
+        dateFilter = d.toISOString();
+      } else if (period === 'month') {
+        const d = new Date();
+        d.setDate(d.getDate() - 29);
+        d.setHours(0, 0, 0, 0);
+        dateFilter = d.toISOString();
+      }
+      // 'all' or undefined => no date filter
+
+      // User count via admin auth
+      let totalUsers = 0;
+      try {
+        const { data: { users: allUsers } } = await admin.auth.admin.listUsers({ perPage: 1, page: 1 });
+        // listUsers returns paginated, but we can get the total from a count query trick
+        // Actually, let's just iterate pages to count
+        let page = 1;
+        let count = 0;
+        while (true) {
+          const { data: { users: batch } } = await admin.auth.admin.listUsers({ perPage: 1000, page });
+          count += batch.length;
+          if (batch.length < 1000) break;
+          page++;
+        }
+        totalUsers = count;
+      } catch {
+        totalUsers = 0;
+      }
+
+      // Conversations
+      let convQuery = admin.from('conversations').select('id, created_at');
+      if (dateFilter) convQuery = convQuery.gte('created_at', dateFilter);
+      const { data: conversations } = await convQuery;
+      const totalConversations = conversations?.length || 0;
+
+      // Conversations by day
+      const dayMap: Record<string, number> = {};
+      (conversations || []).forEach((c: { created_at: string }) => {
+        const day = c.created_at?.slice(0, 10) || '';
+        if (day) dayMap[day] = (dayMap[day] || 0) + 1;
+      });
+      const conversationsByDay = Object.entries(dayMap)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, count]) => ({ day, count }));
+
+      // Messages
+      let msgQuery = admin.from('messages').select('id', { count: 'exact', head: true });
+      if (dateFilter) msgQuery = msgQuery.gte('created_at', dateFilter);
+      const { count: totalMessages } = await msgQuery;
+
+      // Experiments
+      let expQuery = admin.from('experiments').select('id', { count: 'exact', head: true });
+      if (dateFilter) expQuery = expQuery.gte('created_at', dateFilter);
+      const { count: totalExperiments } = await expQuery;
+
+      // Workshops
+      const { data: workshops } = await admin.from('workshops').select('active');
+      const activeWorkshops = (workshops || []).filter((w: { active: boolean }) => w.active).length;
+      const inactiveWorkshops = (workshops || []).filter((w: { active: boolean }) => !w.active).length;
+
+      // Workshop sign-ups
+      let signupQuery = admin.from('workshop_signups').select('user_id, workshop_code, created_at');
+      if (dateFilter) signupQuery = signupQuery.gte('created_at', dateFilter);
+      const { data: signups } = await signupQuery.order('created_at', { ascending: false });
+
+      const totalSignups = signups?.length || 0;
+
+      // Group by workshop
+      const workshopMap: Record<string, number> = {};
+      (signups || []).forEach((s: { workshop_code: string }) => {
+        workshopMap[s.workshop_code] = (workshopMap[s.workshop_code] || 0) + 1;
+      });
+      const signupsByWorkshop = Object.entries(workshopMap)
+        .sort(([, a], [, b]) => b - a)
+        .map(([workshop_code, count]) => ({ workshop_code, count }));
+
+      // Recent sign-ups (last 20)
+      const recentSignups = (signups || []).slice(0, 20).map((s: { user_id: string; workshop_code: string; created_at: string }) => ({
+        user_id: s.user_id,
+        workshop_code: s.workshop_code,
+        created_at: s.created_at,
+      }));
+
+      return jsonResponse({
+        totalUsers,
+        totalConversations,
+        totalMessages: totalMessages || 0,
+        totalExperiments: totalExperiments || 0,
+        activeWorkshops,
+        inactiveWorkshops,
+        totalSignups,
+        conversationsByDay,
+        signupsByWorkshop,
+        recentSignups,
+      }, 200, corsHeaders);
+    }
+
     return jsonResponse({ error: 'Invalid action' }, 400, corsHeaders);
   } catch {
     return jsonResponse({ error: 'Internal server error' }, 500, getCorsHeaders(req));
