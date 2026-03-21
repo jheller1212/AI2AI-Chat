@@ -39,7 +39,7 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
             <button
               onClick={onOpenAdmin}
               aria-label="Admin dashboard"
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600 rounded-lg transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 rounded-lg transition-all shadow-sm"
               title="Admin dashboard"
             >
               <BarChart3 className="w-4 h-4" />
@@ -50,7 +50,7 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
             <button
               onClick={onOpenWorkshops}
               aria-label="Workshop manager"
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 rounded-lg transition-colors shadow-sm"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-400 hover:to-sky-500 rounded-lg transition-all shadow-sm"
               title="Workshop manager"
             >
               <GraduationCap className="w-4 h-4" />
