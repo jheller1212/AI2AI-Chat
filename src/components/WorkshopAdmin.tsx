@@ -1,6 +1,26 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Copy, Check, ToggleLeft, ToggleRight, Pencil, Trash2 } from 'lucide-react';
+import { X, Plus, Copy, Check, ToggleLeft, ToggleRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+
+const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/workshop-config`;
+
+async function callWorkshopApi(body: Record<string, unknown>) {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('Not authenticated');
+
+  const resp = await fetch(EDGE_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const result = await resp.json();
+  if (!resp.ok || result.error) throw new Error(result.error || `HTTP ${resp.status}`);
+  return result;
+}
 
 interface Workshop {
   code: string;
@@ -32,13 +52,10 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
 
   const fetchWorkshops = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      // Use edge function to list (we'll add a 'list' action)
-      const { data, error } = await supabase.functions.invoke('workshop-config', {
-        body: { action: 'list' },
-      });
-      if (error) throw new Error(error.message);
-      setWorkshops(data?.workshops || []);
+      const result = await callWorkshopApi({ action: 'list' });
+      setWorkshops(result.workshops || []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load workshops');
     } finally {
@@ -53,17 +70,14 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
     setCreating(true);
     setError(null);
     try {
-      const { data, error } = await supabase.functions.invoke('workshop-config', {
-        body: {
-          action: 'create',
-          code: newCode,
-          name: newName,
-          welcome: newWelcome,
-          apiKey: newApiKey,
-          provider: newProvider,
-        },
+      await callWorkshopApi({
+        action: 'create',
+        code: newCode,
+        name: newName,
+        welcome: newWelcome,
+        apiKey: newApiKey,
+        provider: newProvider,
       });
-      if (error || data?.error) throw new Error(data?.error || error?.message || 'Failed to create');
       setShowCreate(false);
       setNewCode(''); setNewName(''); setNewWelcome(''); setNewApiKey('');
       await fetchWorkshops();
@@ -75,10 +89,12 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
   };
 
   const handleToggle = async (code: string, active: boolean) => {
-    await supabase.functions.invoke('workshop-config', {
-      body: { action: 'update', code, active: !active },
-    });
-    await fetchWorkshops();
+    try {
+      await callWorkshopApi({ action: 'update', code, active: !active });
+      await fetchWorkshops();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to update workshop');
+    }
   };
 
   const copyLink = (code: string) => {
