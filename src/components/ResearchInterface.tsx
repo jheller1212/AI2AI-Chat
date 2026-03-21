@@ -147,8 +147,16 @@ export function ResearchInterface({
   // SPEC-04: track stopping trigger per conversation (conversationId → trigger string)
   const [stoppingTriggers, setStoppingTriggers] = useState<Record<string, string>>({});
 
-  // Check if user is a workshop organizer
+  // Check if user is a workshop organizer (server check + client-side fallback)
   useEffect(() => {
+    const email = user.email?.toLowerCase() || '';
+
+    // Client-side: check known admin email immediately
+    if (email === 'jonasheller89@gmail.com' || email === 'sbe-dexlab@maastrichtuniversity.nl') {
+      setIsOrganizer(true);
+    }
+
+    // Server-side: check workshop_organizers table (covers dynamically added organizers)
     const checkOrganizer = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -172,7 +180,7 @@ export function ResearchInterface({
       } catch { /* ignore */ }
     };
     checkOrganizer();
-  }, []);
+  }, [user.email]);
 
   // Workshop mode: apply scenario and model config on mount
   const workshopAppliedRef = useRef(false);
