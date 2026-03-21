@@ -305,6 +305,58 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true }, 200, corsHeaders);
     }
 
+    // === GENERATE-INVITE: organizers can create invite codes ===
+    if (action === 'generate-invite') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const code = crypto.randomUUID().slice(0, 8).toUpperCase();
+      const { error } = await admin
+        .from('organizer_invite_codes')
+        .insert({ code, created_by: user.id });
+
+      if (error) {
+        return jsonResponse({ error: error.message }, 500, corsHeaders);
+      }
+
+      return jsonResponse({ code }, 200, corsHeaders);
+    }
+
+    // === REDEEM-INVITE: any authenticated user can redeem an invite code ===
+    if (action === 'redeem-invite') {
+      const { code } = body;
+      if (!code || typeof code !== 'string') {
+        return jsonResponse({ error: 'Missing invite code' }, 400, corsHeaders);
+      }
+
+      const { data: invite } = await admin
+        .from('organizer_invite_codes')
+        .select('id, used_by')
+        .eq('code', code.toUpperCase().trim())
+        .maybeSingle();
+
+      if (!invite) {
+        return jsonResponse({ error: 'Invalid invite code' }, 404, corsHeaders);
+      }
+      if (invite.used_by) {
+        return jsonResponse({ error: 'This invite code has already been used' }, 400, corsHeaders);
+      }
+
+      // Mark code as used
+      await admin
+        .from('organizer_invite_codes')
+        .update({ used_by: user.id, used_at: new Date().toISOString() })
+        .eq('id', invite.id);
+
+      // Add user as organizer
+      await admin
+        .from('workshop_organizers')
+        .upsert({ email: (user.email || '').toLowerCase().trim(), added_by: user.id }, { onConflict: 'email' });
+
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
     return jsonResponse({ error: 'Invalid action' }, 400, corsHeaders);
   } catch {
     return jsonResponse({ error: 'Internal server error' }, 500, getCorsHeaders(req));
