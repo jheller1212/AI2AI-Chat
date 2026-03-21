@@ -60,8 +60,7 @@ function jsonResponse(body: unknown, status: number, headers: Record<string, str
   });
 }
 
-// deno-lint-ignore no-explicit-any
-async function isOrganizer(admin: any, email: string): Promise<boolean> {
+async function isOrganizer(admin: ReturnType<typeof createClient>, email: string): Promise<boolean> {
   const emailLower = (email || '').toLowerCase().trim();
   if (emailLower === SUPER_ADMIN) return true;
   const { data } = await admin
