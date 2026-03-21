@@ -1,5 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Copy, Check, ToggleLeft, ToggleRight, KeyRound } from 'lucide-react';
+import { X, Plus, Copy, Check, ToggleLeft, ToggleRight, KeyRound, ExternalLink, AlertTriangle } from 'lucide-react';
+
+const API_KEY_URLS: Record<string, { label: string; url: string }> = {
+  gpt4: { label: 'OpenAI API Keys', url: 'https://platform.openai.com/api-keys' },
+  claude: { label: 'Anthropic API Keys', url: 'https://console.anthropic.com/settings/keys' },
+  gemini: { label: 'Google AI API Keys', url: 'https://aistudio.google.com/apikey' },
+  mistral: { label: 'Mistral API Keys', url: 'https://console.mistral.ai/api-keys' },
+};
 import { supabase } from '../lib/supabase';
 import { loadVault } from '../lib/apiKeyVault';
 import type { ProviderVault } from '../lib/apiKeyVault';
@@ -296,6 +303,26 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
                       </button>
                     </div>
                   </div>
+                  {!w.active && API_KEY_URLS[w.provider] && (
+                    <div className="mt-2 flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-amber-700 dark:text-amber-400">
+                        Remember to revoke the API key at{' '}
+                        <a href={API_KEY_URLS[w.provider].url} target="_blank" rel="noopener noreferrer" className="underline font-medium inline-flex items-center gap-0.5">
+                          {API_KEY_URLS[w.provider].label}
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </p>
+                    </div>
+                  )}
+                  {w.active && API_KEY_URLS[w.provider] && (
+                    <div className="mt-2">
+                      <a href={API_KEY_URLS[w.provider].url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 inline-flex items-center gap-1">
+                        Manage key at {API_KEY_URLS[w.provider].label}
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </a>
+                    </div>
+                  )}
                   {copiedCode === w.code && (
                     <p className="text-xs text-green-600 dark:text-green-400 mt-2">Link copied: ai2aichat.com/?workshop={w.code}</p>
                   )}
