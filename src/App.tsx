@@ -183,7 +183,7 @@ function App() {
       clearTimeout(timer);
       events.forEach(e => window.removeEventListener(e, reset));
     };
-  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session]);
 
   const handleSignOut = async () => {
     try {
