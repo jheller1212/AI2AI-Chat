@@ -155,9 +155,7 @@ export function ModelConfig({
           placeholder={API_KEY_PLACEHOLDERS[model]}
           disabled={disabled}
         />
-        <p className="text-xs text-amber-600 dark:text-amber-400">
-          Encrypted and stored securely. Keys persist across sessions.
-        </p>
+        <p className="text-[11px] text-gray-400 dark:text-gray-500">Encrypted · persists across sessions</p>
       </div>
 
       {/* Organization ID removed — it causes silent failures with direct browser API calls */}
