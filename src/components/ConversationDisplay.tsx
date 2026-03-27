@@ -75,7 +75,7 @@ export function ConversationDisplay({
   const hasMultipleReps = convIdToRepNum.size > 1;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2.5">
       {visible.map((message, idx) => {
         const isUser = message.role === 'user';
         const isBot1 = message.role === 'assistant' && message.botIndex === 1;
@@ -100,7 +100,7 @@ export function ConversationDisplay({
             <React.Fragment key={message.id}>
               {repDivider}
               <div
-                className="flex flex-col gap-2 p-4 rounded-xl shadow-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 mr-12"
+                className="flex flex-col gap-1 px-3 py-2 rounded-xl shadow-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 mr-12"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -124,26 +124,28 @@ export function ConversationDisplay({
           <React.Fragment key={message.id}>
             {repDivider}
           <div
-            className={`flex flex-col gap-2 p-4 rounded-xl shadow-sm ${isBot1 ? 'ml-12' : 'mr-12'}`}
+            className={`flex flex-col gap-1 px-3 py-2 rounded-xl shadow-sm ${isBot1 ? 'ml-12' : 'mr-12'}`}
             style={{ backgroundColor: bgColor }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bot className="w-4 h-4" style={{ color: fgColor, opacity: 0.7 }} />
+                <Bot className="w-3.5 h-3.5" style={{ color: fgColor, opacity: 0.7 }} />
                 <span className="text-sm font-semibold" style={{ color: fgColor }}>{label}</span>
+                {message.wordCount != null && message.timeTaken != null && (
+                  <span className="text-[11px] flex items-center gap-1.5" style={{ color: fgColor, opacity: 0.45 }}>
+                    <span>{message.wordCount}w</span>
+                    <span>·</span>
+                    <TokenBadge wordCount={message.wordCount} />
+                    <span>·</span>
+                    <span>{(message.timeTaken / 1000).toFixed(1)}s</span>
+                  </span>
+                )}
               </div>
-              <span className="text-xs" style={{ color: fgColor, opacity: 0.5 }}>
+              <span className="text-[11px]" style={{ color: fgColor, opacity: 0.45 }}>
                 {new Date(message.timestamp).toLocaleTimeString()}
               </span>
             </div>
             <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: fgColor }}>{message.content}</p>
-            {message.wordCount != null && message.timeTaken != null && (
-              <div className="flex gap-3 pt-1" style={{ color: fgColor }}>
-                <span className="text-xs" style={{ opacity: 0.5 }}>{message.wordCount} words</span>
-                <span className="text-xs" style={{ opacity: 0.5 }}>{(message.timeTaken / 1000).toFixed(2)}s</span>
-                <TokenBadge wordCount={message.wordCount} />
-              </div>
-            )}
           </div>
           </React.Fragment>
         );
