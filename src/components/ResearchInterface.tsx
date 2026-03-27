@@ -891,6 +891,7 @@ export function ResearchInterface({
         onOpenWorkshops={() => setShowWorkshopAdmin(true)}
         onOpenAdmin={() => setShowAdminDashboard(true)}
         isOrganizer={isOrganizer}
+        showSettings={showSettings}
         user={user}
         isDarkMode={isDarkMode}
         onToggleDarkMode={onToggleDarkMode}

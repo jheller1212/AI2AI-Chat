@@ -1,6 +1,6 @@
 import React from 'react';
 import type { User } from '@supabase/supabase-js';
-import { Settings, SlidersHorizontal, ArrowLeft, UserCircle, Clock, Moon, Sun, FlaskConical, GraduationCap, BarChart3 } from 'lucide-react';
+import { Settings, Bot, MessageSquare, ArrowLeft, UserCircle, Clock, Moon, Sun, FlaskConical, GraduationCap, BarChart3 } from 'lucide-react';
 import { Logo } from './Logo';
 
 interface HeaderProps {
@@ -13,12 +13,13 @@ interface HeaderProps {
   onOpenWorkshops?: () => void;
   onOpenAdmin?: () => void;
   isOrganizer?: boolean;
+  showSettings: boolean;
   user: User;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
 }
 
-export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings, onOpenHistory, onOpenExperiments, onOpenWorkshops, onOpenAdmin, isOrganizer, user, isDarkMode, onToggleDarkMode }: HeaderProps) {
+export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings, onOpenHistory, onOpenExperiments, onOpenWorkshops, onOpenAdmin, isOrganizer, showSettings, user, isDarkMode, onToggleDarkMode }: HeaderProps) {
   const displayName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'Account';
 
   return (
@@ -27,8 +28,9 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            aria-label="Back"
+            aria-label="Back to landing page"
             className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+            title="Back to landing page"
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -78,17 +80,28 @@ export function Header({ onBack, onSignOut, onToggleSettings, onOpenUserSettings
           </button>
           <button
             onClick={onToggleSettings}
-            aria-label="Toggle AI config panels"
-            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-            title="Toggle AI config panels"
+            aria-label={showSettings ? 'Hide bot config — show chat only' : 'Show bot config panels'}
+            className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${
+              showSettings
+                ? 'text-indigo-600 dark:text-indigo-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+            }`}
+            title={showSettings ? 'Hide bot config — show chat only' : 'Show bot config panels'}
           >
-            <SlidersHorizontal className="w-5 h-5" />
+            {showSettings ? (
+              <MessageSquare className="w-5 h-5" />
+            ) : (
+              <div className="flex -space-x-1.5">
+                <Bot className="w-4 h-4" />
+                <Bot className="w-4 h-4" />
+              </div>
+            )}
           </button>
           <button
             onClick={onOpenUserSettings}
             aria-label="Settings"
             className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-            title="Settings"
+            title="Account settings & API keys"
           >
             <Settings className="w-5 h-5" />
           </button>
