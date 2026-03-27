@@ -24,7 +24,7 @@ export function Footer({ onPrivacyClick, onTermsClick }: FooterProps) {
             <p className="text-sm max-w-xs">
               A free tool for AI-to-AI conversations — for research, business, and the classroom. Bring your own API keys.
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-gray-400">
               API keys are encrypted and stored securely. They persist across sessions and devices.
             </p>
           </div>
@@ -63,7 +63,7 @@ export function Footer({ onPrivacyClick, onTermsClick }: FooterProps) {
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
+        <div className="mt-8 pt-6 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-500">
           <span>© {new Date().getFullYear()} AI2AI-Chat · All rights reserved</span>
           <span>Conversations stored with Supabase · Not affiliated with OpenAI, Anthropic, Google, or Mistral</span>
         </div>

@@ -28,7 +28,7 @@ export function HeroSection({ onSignUpClick }: HeroSectionProps) {
               Create free account
             </button>
           </div>
-          <p className="text-sm text-gray-400">Free to use · Bring your own API keys</p>
+          <p className="text-sm text-gray-500">Free to use · Bring your own API keys</p>
         </div>
       </div>
     </div>

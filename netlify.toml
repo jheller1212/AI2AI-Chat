@@ -2,6 +2,18 @@
   command = "npm run build"
   publish = "dist"
 
+# Explicit rules for static files that must not be rewritten to index.html
+[[redirects]]
+  from = "/robots.txt"
+  to = "/robots.txt"
+  status = 200
+
+[[redirects]]
+  from = "/manifest.json"
+  to = "/manifest.json"
+  status = 200
+
+# SPA fallback — must come after specific rules
 [[redirects]]
   from = "/*"
   to = "/index.html"

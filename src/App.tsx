@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './lib/supabase';
-import { Auth } from './components/Auth';
 import type { WorkshopPublicInfo } from './components/Auth';
-import { ResearchInterface } from './components/ResearchInterface';
-import { LandingPage } from './components/LandingPage';
-import { PrivacyPolicy } from './components/PrivacyPolicy';
-import { TermsOfUse } from './components/TermsOfUse';
 import { StorageNotice } from './components/StorageNotice';
+
+const Auth = lazy(() => import('./components/Auth').then(m => ({ default: m.Auth })));
+const ResearchInterface = lazy(() => import('./components/ResearchInterface').then(m => ({ default: m.ResearchInterface })));
+const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
+const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
+const TermsOfUse = lazy(() => import('./components/TermsOfUse').then(m => ({ default: m.TermsOfUse })));
 import { clearVault, loadVault, loadVaultFromServer, syncVaultToServer, saveVault } from './lib/apiKeyVault';
 import type { ProviderVault } from './lib/apiKeyVault';
 
@@ -207,6 +208,12 @@ function App() {
 
   const storageNotice = <StorageNotice onPrivacyClick={() => setView('privacy')} />;
 
+  const suspenseFallback = (
+    <div className="min-h-screen flex items-center justify-center dark:bg-gray-950">
+      <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
   // Workshop link: show inactive message or skip to auth
   if (view === 'landing' && URL_PARAMS.workshop && !session) {
     if (workshopInactive) {
@@ -230,16 +237,16 @@ function App() {
         </div>
       );
     }
-    return <>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} workshopInfo={workshopPublicInfo} /></>;
+    return <Suspense fallback={suspenseFallback}>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} workshopInfo={workshopPublicInfo} /></Suspense>;
   }
 
   if (view === 'auth') {
-    return <>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} workshopInfo={workshopPublicInfo} /></>;
+    return <Suspense fallback={suspenseFallback}>{storageNotice}<Auth onAuthSuccess={() => setView('app')} initialIsSignUp={authMode === 'signup'} workshopInfo={workshopPublicInfo} /></Suspense>;
   }
 
   if (view === 'app' && session) {
     return (
-      <>
+      <Suspense fallback={suspenseFallback}>
         {storageNotice}
         <ResearchInterface
           onSignOut={handleSignOut}
@@ -252,23 +259,23 @@ function App() {
           sharedConfig={URL_PARAMS.sharedConfig}
           workshopData={workshopData}
         />
-      </>
+      </Suspense>
     );
   }
 
   if (view === 'privacy') {
-    return <>{storageNotice}<PrivacyPolicy onBack={() => setView('landing')} /></>;
+    return <Suspense fallback={suspenseFallback}>{storageNotice}<PrivacyPolicy onBack={() => setView('landing')} /></Suspense>;
   }
 
   if (view === 'terms') {
-    return <>{storageNotice}<TermsOfUse onBack={() => setView('landing')} /></>;
+    return <Suspense fallback={suspenseFallback}>{storageNotice}<TermsOfUse onBack={() => setView('landing')} /></Suspense>;
   }
 
   const goToSignIn = () => { setAuthMode('signin'); setView(session ? 'app' : 'auth'); };
   const goToSignUp = () => { setAuthMode('signup'); setView(session ? 'app' : 'auth'); };
 
   return (
-    <>
+    <Suspense fallback={suspenseFallback}>
       {storageNotice}
       <LandingPage
         onAuthClick={goToSignIn}
@@ -277,7 +284,7 @@ function App() {
         onPrivacyClick={() => setView('privacy')}
         onTermsClick={() => setView('terms')}
       />
-    </>
+    </Suspense>
   );
 }
 
