@@ -914,7 +914,7 @@ export function ResearchInterface({
           onOpenHistory={() => { setShowUserSettings(false); setShowHistory(true); }}
           onDataDeleted={() => { setMessages([]); setShowUserSettings(false); }}
           onAccountDeleted={() => { onSignOut(); }}
-          onRewatchTour={() => { resetTourDismissed(); incrementTourCount(); setShowTour(true); }}
+          onRewatchTour={() => { resetTourDismissed(); incrementTourCount(); setCurrentView('setup'); setShowTour(true); }}
           isOrganizer={isOrganizer}
           onOpenWorkshops={() => { setShowUserSettings(false); setShowWorkshopAdmin(true); }}
           onOpenAdmin={() => { setShowUserSettings(false); setShowAdminDashboard(true); }}
