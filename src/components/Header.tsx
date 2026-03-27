@@ -62,20 +62,16 @@ export function Header({
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          {currentView !== 'dashboard' && (
-            <button onClick={onOpenExperiments} data-tour="experiments-btn" aria-label="Saved experiments" title="Saved experiments"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-              <FlaskConical className="w-3.5 h-3.5" />
-              <span className="hidden sm:block">Experiments</span>
-            </button>
-          )}
-          {currentView !== 'dashboard' && (
-            <button onClick={onOpenHistory} aria-label="Conversation history" title="Conversation history"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
-              <Clock className="w-3.5 h-3.5" />
-              <span className="hidden sm:block">History</span>
-            </button>
-          )}
+          <button onClick={onOpenExperiments} data-tour="experiments-btn" aria-label="Saved experiments" title="Saved experiments"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+            <FlaskConical className="w-3.5 h-3.5" />
+            <span className="hidden sm:block">Experiments</span>
+          </button>
+          <button onClick={onOpenHistory} aria-label="Conversation history" title="Conversation history"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+            <Clock className="w-3.5 h-3.5" />
+            <span className="hidden sm:block">History</span>
+          </button>
           {currentView === 'chat' && (
             <button onClick={onNavigateBack}
               aria-label="Edit bot config" title="Edit bot config"
