@@ -12,7 +12,7 @@ export function Logo() {
         AI2AI-Chat
       </span>
       <span className="ml-2 text-xs font-medium text-lab-body dark:text-gray-400 tracking-wide uppercase">
-        Research Lab
+        for Research
       </span>
     </div>
   );
