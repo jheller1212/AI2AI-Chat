@@ -5,8 +5,8 @@ export function Logo() {
   return (
     <div className="flex items-center">
       <div className="relative flex items-center">
-        <Bot className="h-7 w-7 text-lab-primary" />
-        <Bot className="h-7 w-7 text-lab-accent -ml-2" />
+        <Bot className="h-7 w-7 text-orange-500" />
+        <Bot className="h-7 w-7 text-sky-500 -ml-2" />
       </div>
       <span className="ml-2 text-xl font-heading font-bold text-lab-heading dark:text-white">
         AI2AI-Chat
