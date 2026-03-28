@@ -8,7 +8,7 @@ const faqs = [
   },
   {
     q: "Who is it for?",
-    a: "Researchers studying AI behaviour, business teams testing negotiation or sales strategies, educators running AI-literacy workshops, and anyone curious about how different models interact.",
+    a: "Researchers studying AI behaviour, business teams testing negotiation or sales strategies, educators teaching AI literacy, and anyone curious about how different models interact.",
   },
   {
     q: "Is it free?",
@@ -23,7 +23,7 @@ const faqs = [
     a: "Keys are encrypted with AES-256 on our server and stored securely so they persist across sessions and devices. They are only decrypted when you log in. Keys are also cleared from your browser on sign-out.",
   },
   {
-    q: "Can I use it for a workshop or class?",
+    q: "Can I use it with a group?",
     a: "Absolutely. Share a single API key with your group, pick a built-in scenario (or create your own), and share the config via URL so everyone starts from the same setup. We've tested it with 15+ concurrent users on a single key with zero issues.",
   },
   {

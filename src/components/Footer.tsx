@@ -22,7 +22,7 @@ export function Footer({ onPrivacyClick, onTermsClick }: FooterProps) {
               <span className="text-white font-bold text-lg">AI2AI-Chat</span>
             </div>
             <p className="text-sm max-w-xs">
-              A free tool for AI-to-AI conversations — for research, business, and the classroom. Bring your own API keys.
+              A free research tool for AI-to-AI conversations. Configure, compare, and export. Bring your own API keys.
             </p>
             <p className="text-xs text-gray-400">
               API keys are encrypted and stored securely. They persist across sessions and devices.

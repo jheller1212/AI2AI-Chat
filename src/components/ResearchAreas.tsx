@@ -18,7 +18,7 @@ export function ResearchAreas() {
           <Card
             icon={<Zap className="h-6 w-6 text-sky-600" />}
             title="Start in seconds"
-            description="Choose a built-in scenario — comedy roast, B2B negotiation, therapy session — or create your own. Pre-filled prompts mean you can demo the tool instantly in a workshop or meeting."
+            description="Choose a built-in scenario — comedy roast, B2B negotiation, therapy session — or create your own. Pre-filled prompts mean you can start running experiments in seconds."
             bgColor="bg-sky-100"
           />
           <Card

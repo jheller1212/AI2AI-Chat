@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlaskConical, Briefcase, GraduationCap } from 'lucide-react';
+import { FlaskConical, Briefcase, BookOpen } from 'lucide-react';
 
 interface UseCaseColumn {
   icon: React.ReactNode;
@@ -30,12 +30,12 @@ const columns: UseCaseColumn[] = [
     dotColor: "bg-sky-500",
   },
   {
-    icon: <GraduationCap className="h-5 w-5 text-indigo-600" />,
-    title: "Workshops & training",
+    icon: <BookOpen className="h-5 w-5 text-indigo-600" />,
+    title: "Education & learning",
     points: [
-      "Run live demos in MBA or AI-literacy classes with pre-built scenarios",
-      "Let participants observe AI behaviour in negotiation, therapy, or debate",
-      "Share experiment configs via URL so the whole room starts from the same setup",
+      "Teach students how different AI models reason through the same problem",
+      "Let learners observe AI behaviour in negotiation, therapy, or debate scenarios",
+      "Share experiment configs via URL so an entire group starts from the same setup",
     ],
     dotColor: "bg-indigo-500",
   },
