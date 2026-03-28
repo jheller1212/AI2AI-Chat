@@ -416,16 +416,10 @@ Deno.serve(async (req) => {
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([day, count]) => ({ day, count }));
 
-      // Messages — filter by conversation_id since messages may not have created_at
-      let totalMessages = 0;
-      if (dateFilter && conversations && conversations.length > 0) {
-        const convIds = conversations.map((c: { id: string }) => c.id);
-        const { count } = await admin.from('messages').select('id', { count: 'exact', head: true }).in('conversation_id', convIds);
-        totalMessages = count || 0;
-      } else if (!dateFilter) {
-        const { count } = await admin.from('messages').select('id', { count: 'exact', head: true });
-        totalMessages = count || 0;
-      }
+      // Messages
+      let msgQuery = admin.from('messages').select('id', { count: 'exact', head: true });
+      if (dateFilter) msgQuery = msgQuery.gte('created_at', dateFilter);
+      const { count: totalMessages } = await msgQuery;
 
       // Experiments
       let expQuery = admin.from('experiments').select('id', { count: 'exact', head: true });
