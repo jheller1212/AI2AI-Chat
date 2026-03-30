@@ -103,12 +103,12 @@ export function ResearchInterface({
   const [apiKey1, setApiKey1] = useState<string>(() => {
     const vault = loadVault();
     const provider = (sc(sharedConfig, 'm1') as AIModel) ?? saved?.model1 ?? 'gpt4';
-    return vault[provider] || saved?.apiKey1 || '';
+    return vault[provider] || '';
   });
   const [apiKey2, setApiKey2] = useState<string>(() => {
     const vault = loadVault();
     const provider = (sc(sharedConfig, 'm2') as AIModel) ?? saved?.model2 ?? 'gpt4';
-    return vault[provider] || saved?.apiKey2 || '';
+    return vault[provider] || '';
   });
   // Organization ID removed — causes silent failures with direct browser API calls
   const [orgId1, setOrgId1] = useState<string>('');
@@ -282,7 +282,7 @@ export function ResearchInterface({
   // Persist settings to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      model1, model2, apiKey1, apiKey2, orgId1, orgId2,
+      model1, model2,
       modelVersion1, modelVersion2, temperature1, temperature2,
       maxTokens1, maxTokens2, botName1, botName2,
       systemPrompt1, systemPrompt2, responseDelay, delayVariance,
@@ -290,7 +290,7 @@ export function ResearchInterface({
       bubbleColor1, bubbleColor2, textColor1, textColor2,
       botMode, openingMessage, stopKeywords, chatMode,
     }));
-  }, [model1, model2, apiKey1, apiKey2, orgId1, orgId2,
+  }, [model1, model2,
       modelVersion1, modelVersion2, temperature1, temperature2,
       maxTokens1, maxTokens2, botName1, botName2,
       systemPrompt1, systemPrompt2, responseDelay, delayVariance,
