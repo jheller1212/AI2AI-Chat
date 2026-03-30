@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { validateModelConfig } from '../lib/validation';
-import { generateResponse } from '../lib/api/conversation';
 import { supabase } from '../lib/supabase';
-import { loadVault } from '../lib/apiKeyVault';
 import { hashString } from '../lib/hash';
-import type { AIModel, Message, ChatConfig } from '../types';
+import type { AIModel, Message } from '../types';
 import { Header } from './Header';
 import type { AppView } from './Header';
 import { ErrorDisplay } from './ErrorDisplay';
@@ -16,13 +13,17 @@ import { Dashboard } from './Dashboard';
 import { SetupPage } from './SetupPage';
 import { UserSettings } from './UserSettings';
 import { ConversationHistory } from './ConversationHistory';
-import { ExperimentsPanel, type Experiment } from './ExperimentsPanel';
+import { ExperimentsPanel } from './ExperimentsPanel';
 import { OnboardingTour, shouldAutoShowTour, incrementTourCount, resetTourDismissed } from './OnboardingTour';
-
 import { WorkshopBanner } from './WorkshopBanner';
 import { WorkshopAdmin } from './WorkshopAdmin';
 import { AdminDashboard } from './AdminDashboard';
 import type { WorkshopData } from '../App';
+
+import { useBotConfig } from '../hooks/useBotConfig';
+import { useSettingsPersistence, loadSettings, persistSettings } from '../hooks/useSettingsPersistence';
+import { useConversationEngine } from '../hooks/useConversationEngine';
+import { useExperiments } from '../hooks/useExperiments';
 
 interface ResearchInterfaceProps {
   onSignOut: () => Promise<void>;
@@ -30,37 +31,10 @@ interface ResearchInterfaceProps {
   user: User;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
-  // SPEC-02: participant/session context from URL params
   sessionId?: string;
   conditionLabel?: string;
-  // SPEC-06: pre-parsed shared config payload from ?cfg= URL param
   sharedConfig?: Record<string, unknown>;
   workshopData?: WorkshopData | null;
-}
-
-const STORAGE_KEY = 'ai2ai_settings';
-
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-// Helper to safely pull a string out of a sharedConfig object.
-function sc(cfg: Record<string, unknown> | undefined, key: string): string | undefined {
-  const v = cfg?.[key];
-  return typeof v === 'string' ? v : undefined;
-}
-function scNum(cfg: Record<string, unknown> | undefined, key: string): number | undefined {
-  const v = cfg?.[key];
-  return typeof v === 'number' ? v : undefined;
-}
-function scBool(cfg: Record<string, unknown> | undefined, key: string): boolean | undefined {
-  const v = cfg?.[key];
-  return typeof v === 'boolean' ? v : undefined;
 }
 
 export function ResearchInterface({
@@ -69,7 +43,7 @@ export function ResearchInterface({
 }: ResearchInterfaceProps) {
   const saved = loadSettings();
 
-  // View routing: dashboard → setup → chat
+  // --- View routing ---
   const [currentView, setCurrentView] = useState<AppView>(() => {
     if (workshopData || sharedConfig) return 'setup';
     return 'dashboard';
@@ -85,95 +59,55 @@ export function ResearchInterface({
     if (show) incrementTourCount();
     return show;
   });
+  const [shareCopied, setShareCopied] = useState(false);
 
-  // SPEC-01: currently loaded experiment
-  const [currentExperimentId, setCurrentExperimentId] = useState<string | null>(null);
-  const [currentExperimentName, setCurrentExperimentName] = useState<string>('');
+  // --- Custom hooks ---
+  const bot = useBotConfig({ saved, sharedConfig, chatMode: true });
+  const settings = useSettingsPersistence({ saved, sharedConfig });
 
-  // SPEC-01: save experiment dialog state
-  const [showSaveExperiment, setShowSaveExperiment] = useState(false);
-  const [saveExpName, setSaveExpName] = useState('');
-  const [saveExpCondition, setSaveExpCondition] = useState('');
-  const [saveExpDesc, setSaveExpDesc] = useState('');
-  const [savingExp, setSavingExp] = useState(false);
-
-  // Bot configs — sharedConfig (from URL) overrides saved (localStorage).
-  const [model1, setModel1] = useState<AIModel>((sc(sharedConfig, 'm1') as AIModel) ?? saved?.model1 ?? 'gpt4');
-  const [model2, setModel2] = useState<AIModel>((sc(sharedConfig, 'm2') as AIModel) ?? saved?.model2 ?? 'gpt4');
-  const [apiKey1, setApiKey1] = useState<string>(() => {
-    const vault = loadVault();
-    const provider = (sc(sharedConfig, 'm1') as AIModel) ?? saved?.model1 ?? 'gpt4';
-    return vault[provider] || '';
+  const experiments = useExperiments({
+    userId: user.id,
+    botConfigActions: bot,
+    setMaxInteractions: settings.setMaxInteractions,
+    setResponseDelay: settings.setResponseDelay,
+    setDelayVariance: settings.setDelayVariance,
+    setRepetitionCount: settings.setRepetitionCount,
+    setBotMode: settings.setBotMode,
+    setOpeningMessage: settings.setOpeningMessage,
+    setStopKeywords: settings.setStopKeywords,
+    getBotConfig: () => ({
+      m1: bot.model1, mv1: bot.modelVersion1, t1: bot.temperature1, mt1: bot.maxTokens1,
+      sp1: bot.systemPrompt1, n1: bot.botName1,
+      m2: bot.model2, mv2: bot.modelVersion2, t2: bot.temperature2, mt2: bot.maxTokens2,
+      sp2: bot.systemPrompt2, n2: bot.botName2,
+      bc1: bot.bubbleColor1, bc2: bot.bubbleColor2, tc1: bot.textColor1, tc2: bot.textColor2,
+    }),
+    getSettingsConfig: () => ({
+      mi: settings.maxInteractions, rd: settings.responseDelay, dv: settings.delayVariance,
+      rc: settings.repetitionCount, bm: settings.botMode, om: settings.openingMessage,
+      sk: settings.stopKeywords,
+    }),
   });
-  const [apiKey2, setApiKey2] = useState<string>(() => {
-    const vault = loadVault();
-    const provider = (sc(sharedConfig, 'm2') as AIModel) ?? saved?.model2 ?? 'gpt4';
-    return vault[provider] || '';
+
+  const engine = useConversationEngine({
+    ...bot, ...settings,
+    userId: user.id,
+    currentExperimentId: experiments.currentExperimentId,
+    buildEffectivePrompt: bot.buildEffectivePrompt,
+    validateConfigs: bot.validateConfigs,
   });
-  // Organization ID removed — causes silent failures with direct browser API calls
-  const [orgId1, setOrgId1] = useState<string>('');
-  const [orgId2, setOrgId2] = useState<string>('');
-  const [modelVersion1, setModelVersion1] = useState<string>(sc(sharedConfig, 'mv1') ?? saved?.modelVersion1 ?? 'gpt-4o');
-  const [modelVersion2, setModelVersion2] = useState<string>(sc(sharedConfig, 'mv2') ?? saved?.modelVersion2 ?? 'gpt-4o');
-  const [temperature1, setTemperature1] = useState<number>(scNum(sharedConfig, 't1') ?? saved?.temperature1 ?? 0.7);
-  const [temperature2, setTemperature2] = useState<number>(scNum(sharedConfig, 't2') ?? saved?.temperature2 ?? 0.7);
-  const [maxTokens1, setMaxTokens1] = useState<number>(scNum(sharedConfig, 'mt1') ?? saved?.maxTokens1 ?? 2000);
-  const [maxTokens2, setMaxTokens2] = useState<number>(scNum(sharedConfig, 'mt2') ?? saved?.maxTokens2 ?? 2000);
-  const [botName1, setBotName1] = useState<string>(sc(sharedConfig, 'n1') ?? saved?.botName1 ?? 'AI #1');
-  const [botName2, setBotName2] = useState<string>(sc(sharedConfig, 'n2') ?? saved?.botName2 ?? 'AI #2');
-  const [systemPrompt1, setSystemPrompt1] = useState<string>(
-    sc(sharedConfig, 'sp1') ?? saved?.systemPrompt1 ?? 'You are a helpful AI assistant with expertise in science and technology.'
-  );
-  const [systemPrompt2, setSystemPrompt2] = useState<string>(
-    sc(sharedConfig, 'sp2') ?? saved?.systemPrompt2 ?? 'You are a creative AI assistant with expertise in arts and humanities.'
-  );
-  const [responseDelay, setResponseDelay] = useState<number>(scNum(sharedConfig, 'rd') ?? saved?.responseDelay ?? 1);
-  const [delayVariance, setDelayVariance] = useState<boolean>(scBool(sharedConfig, 'dv') ?? saved?.delayVariance ?? false);
-  const [maxInteractions, setMaxInteractions] = useState<number>(Math.max(4, scNum(sharedConfig, 'mi') ?? saved?.maxInteractions ?? 10));
-  const [repetitionCount, setRepetitionCount] = useState<number>(scNum(sharedConfig, 'rc') ?? saved?.repetitionCount ?? 1);
-  const [bubbleColor1, setBubbleColor1] = useState<string>(sc(sharedConfig, 'bc1') ?? saved?.bubbleColor1 ?? '#EEF2FF');
-  const [bubbleColor2, setBubbleColor2] = useState<string>(sc(sharedConfig, 'bc2') ?? saved?.bubbleColor2 ?? '#ECFDF5');
-  const [textColor1, setTextColor1] = useState<string>(sc(sharedConfig, 'tc1') ?? saved?.textColor1 ?? '#312E81');
-  const [textColor2, setTextColor2] = useState<string>(sc(sharedConfig, 'tc2') ?? saved?.textColor2 ?? '#064E3B');
 
-  // SPEC-03: role asymmetry
-  const [botMode, setBotMode] = useState<'symmetric' | 'asymmetric'>(
-    (sc(sharedConfig, 'bm') as 'symmetric' | 'asymmetric') ?? saved?.botMode ?? 'symmetric'
-  );
-  const [openingMessage, setOpeningMessage] = useState<string>(sc(sharedConfig, 'om') ?? saved?.openingMessage ?? '');
-
-  // SPEC-04: keyword stopping
-  const [stopKeywords, setStopKeywords] = useState<string>(sc(sharedConfig, 'sk') ?? saved?.stopKeywords ?? '');
-
-  const [chatMode, setChatMode] = useState<boolean>(saved?.chatMode ?? true);
-
-  const [userInput, setUserInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<string[]>([]);
-  const [autoInteract, setAutoInteract] = useState(saved?.autoInteract ?? true);
-  const [saveHistory, setSaveHistory] = useState<boolean>(saved?.saveHistory ?? true);
-  const [interactionCount, setInteractionCount] = useState(0);
-  const [repetitionCurrent, setRepetitionCurrent] = useState(0);
-
-  // SPEC-04: track stopping trigger per conversation (conversationId → trigger string)
-  const [stoppingTriggers, setStoppingTriggers] = useState<Record<string, string>>({});
-
-  // Check if user is a workshop organizer (server-side only)
+  // --- Organizer check ---
   useEffect(() => {
     const checkOrganizer = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-
         const resp = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/workshop-config`,
           {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session.access_token}`,
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
             body: JSON.stringify({ action: 'check-organizer' }),
           }
         );
@@ -186,7 +120,7 @@ export function ResearchInterface({
     checkOrganizer();
   }, [user.email]);
 
-  // Workshop mode: apply scenario and model config on mount
+  // --- Workshop mode ---
   const workshopAppliedRef = useRef(false);
   useEffect(() => {
     if (!workshopData || workshopAppliedRef.current) return;
@@ -195,581 +129,71 @@ export function ResearchInterface({
 
     if (workshopData.scenario) {
       const s = workshopData.scenario;
-      if (s.botAPrompt) setSystemPrompt1(s.botAPrompt);
-      if (s.botBPrompt) setSystemPrompt2(s.botBPrompt);
-      if (s.sharedPrompt) setUserInput(s.sharedPrompt);
-      if (s.stopKeywords) setStopKeywords(s.stopKeywords);
-      if (s.botMode) setBotMode(s.botMode);
+      if (s.botAPrompt) bot.setSystemPrompt1(s.botAPrompt);
+      if (s.botBPrompt) bot.setSystemPrompt2(s.botBPrompt);
+      if (s.sharedPrompt) settings.setUserInput(s.sharedPrompt);
+      if (s.stopKeywords) settings.setStopKeywords(s.stopKeywords);
+      if (s.botMode) settings.setBotMode(s.botMode);
     }
 
-    // Apply model config overrides if provided
     if (workshopData.config) {
       const c = workshopData.config;
-      if (c.m1) setModel1(c.m1 as AIModel);
-      if (c.m2) setModel2(c.m2 as AIModel);
-      if (c.mv1) setModelVersion1(c.mv1 as string);
-      if (c.mv2) setModelVersion2(c.mv2 as string);
-      if (typeof c.t1 === 'number') setTemperature1(c.t1);
-      if (typeof c.t2 === 'number') setTemperature2(c.t2);
-      if (c.n1) setBotName1(c.n1 as string);
-      if (c.n2) setBotName2(c.n2 as string);
+      if (c.m1) bot.setModel1(c.m1 as AIModel);
+      if (c.m2) bot.setModel2(c.m2 as AIModel);
+      if (c.mv1) bot.setModelVersion1(c.mv1 as string);
+      if (c.mv2) bot.setModelVersion2(c.mv2 as string);
+      if (typeof c.t1 === 'number') bot.setTemperature1(c.t1);
+      if (typeof c.t2 === 'number') bot.setTemperature2(c.t2);
+      if (c.n1) bot.setBotName1(c.n1 as string);
+      if (c.n2) bot.setBotName2(c.n2 as string);
     }
 
-    // Set both bot API keys to the workshop key
     if (workshopData.apiKey) {
-      setApiKey1(workshopData.apiKey);
-      setApiKey2(workshopData.apiKey);
+      bot.setApiKey1(workshopData.apiKey);
+      bot.setApiKey2(workshopData.apiKey);
     }
   }, [workshopData]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // SPEC-06: share-link copied toast
-  const [shareCopied, setShareCopied] = useState(false);
-
-  // Refs so async callbacks always read the latest values
-  const autoInteractRef = useRef(autoInteract);
-  const maxInteractionsRef = useRef(maxInteractions);
-  const responseDelayRef = useRef(responseDelay);
-  const delayVarianceRef = useRef(delayVariance);
-  const repetitionCountRef = useRef(repetitionCount);
-  const repetitionCurrentRef = useRef(0);
-  const stopKeywordsRef = useRef(stopKeywords);
-  const initialChainRef = useRef<{
-    userMsg: string;
-    allMessages: Message[];
-    localConversationId: string;
-    bot1StartsFirst: boolean;
-  } | null>(null);
-  const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isStoppedRef = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  // Re-sync API keys from vault when localStorage changes (e.g. after auth restores vault from server)
+  // --- Persist settings ---
   useEffect(() => {
-    const syncKeysFromVault = () => {
-      const vault = loadVault();
-      if (vault[model1] && vault[model1] !== apiKey1) setApiKey1(vault[model1]);
-      if (vault[model2] && vault[model2] !== apiKey2) setApiKey2(vault[model2]);
-    };
-
-    // Listen for storage events (cross-tab) and also poll once after a short delay
-    // to catch async vault restoration after auth
-    window.addEventListener('storage', syncKeysFromVault);
-    const timer = setTimeout(syncKeysFromVault, 1500);
-    // Also listen for visibility change (window switch)
-    const handleVisibility = () => { if (document.visibilityState === 'visible') syncKeysFromVault(); };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    return () => {
-      window.removeEventListener('storage', syncKeysFromVault);
-      document.removeEventListener('visibilitychange', handleVisibility);
-      clearTimeout(timer);
-    };
-  }, [model1, model2]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => { autoInteractRef.current = autoInteract; }, [autoInteract]);
-  useEffect(() => { maxInteractionsRef.current = maxInteractions; }, [maxInteractions]);
-  useEffect(() => { responseDelayRef.current = responseDelay; }, [responseDelay]);
-  useEffect(() => { delayVarianceRef.current = delayVariance; }, [delayVariance]);
-  useEffect(() => { repetitionCountRef.current = repetitionCount; }, [repetitionCount]);
-  useEffect(() => { stopKeywordsRef.current = stopKeywords; }, [stopKeywords]);
-
-  useEffect(() => {
-    return () => {
-      if (pendingTimeoutRef.current) clearTimeout(pendingTimeoutRef.current);
-    };
-  }, []);
-
-  // Persist settings to localStorage
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      model1, model2,
-      modelVersion1, modelVersion2, temperature1, temperature2,
-      maxTokens1, maxTokens2, botName1, botName2,
-      systemPrompt1, systemPrompt2, responseDelay, delayVariance,
-      autoInteract, maxInteractions, repetitionCount, saveHistory,
-      bubbleColor1, bubbleColor2, textColor1, textColor2,
-      botMode, openingMessage, stopKeywords, chatMode,
-    }));
-  }, [model1, model2,
-      modelVersion1, modelVersion2, temperature1, temperature2,
-      maxTokens1, maxTokens2, botName1, botName2,
-      systemPrompt1, systemPrompt2, responseDelay, delayVariance,
-      autoInteract, maxInteractions, repetitionCount, saveHistory,
-      bubbleColor1, bubbleColor2, textColor1, textColor2,
-      botMode, openingMessage, stopKeywords, chatMode]);
-
-  const validateConfigs = () => {
-    const e1 = validateModelConfig(model1, { apiKey: apiKey1, temperature: temperature1, maxTokens: maxTokens1 });
-    const e2 = validateModelConfig(model2, { apiKey: apiKey2, temperature: temperature2, maxTokens: maxTokens2 });
-    const all = [...e1, ...e2];
-    setErrors(all);
-    return all.length === 0;
-  };
-
-  // Build effective system prompt: user prompt + chat mode instruction + role enforcement
-  const CHAT_MODE_INSTRUCTION = 'Reply in short, conversational sentences. Max 1–2 sentences per message. Write like a chat, not an essay.';
-
-  const buildEffectivePrompt = (basePrompt: string, botSlot: 1 | 2): string => {
-    let prompt = basePrompt;
-
-    if (chatMode) {
-      prompt += '\n\n' + CHAT_MODE_INSTRUCTION;
-    }
-
-    // Role bleed prevention: enforce single-role behavior
-    const myName = botSlot === 1 ? (botName1 || 'Bot A') : (botName2 || 'Bot B');
-    const otherName = botSlot === 1 ? (botName2 || 'Bot B') : (botName1 || 'Bot A');
-    prompt += `\n\nYou are only ${myName}. Never speak as, simulate, or continue the turn of ${otherName}. Wait for ${otherName}'s response. Stay in your role only.`;
-
-    return prompt;
-  };
-
-  const saveMessageToDb = (conversationId: string, msg: Message, role: string, modelLabel: string) => {
-    if (msg.hidden || !saveHistory) return;
-    supabase.from('messages').insert({
-      conversation_id: conversationId,
-      role,
-      model: modelLabel,
-      content: msg.content,
-      word_count: msg.wordCount ?? 0,
-      time_taken: msg.timeTaken ?? 0
+    persistSettings({
+      model1: bot.model1, model2: bot.model2,
+      modelVersion1: bot.modelVersion1, modelVersion2: bot.modelVersion2,
+      temperature1: bot.temperature1, temperature2: bot.temperature2,
+      maxTokens1: bot.maxTokens1, maxTokens2: bot.maxTokens2,
+      botName1: bot.botName1, botName2: bot.botName2,
+      systemPrompt1: bot.systemPrompt1, systemPrompt2: bot.systemPrompt2,
+      bubbleColor1: bot.bubbleColor1, bubbleColor2: bot.bubbleColor2,
+      textColor1: bot.textColor1, textColor2: bot.textColor2,
+      responseDelay: settings.responseDelay, delayVariance: settings.delayVariance,
+      autoInteract: settings.autoInteract, maxInteractions: settings.maxInteractions,
+      repetitionCount: settings.repetitionCount, saveHistory: settings.saveHistory,
+      botMode: settings.botMode, openingMessage: settings.openingMessage,
+      stopKeywords: settings.stopKeywords, chatMode: settings.chatMode,
     });
-  };
+  }, [bot.model1, bot.model2, bot.modelVersion1, bot.modelVersion2,
+      bot.temperature1, bot.temperature2, bot.maxTokens1, bot.maxTokens2,
+      bot.botName1, bot.botName2, bot.systemPrompt1, bot.systemPrompt2,
+      bot.bubbleColor1, bot.bubbleColor2, bot.textColor1, bot.textColor2,
+      settings.responseDelay, settings.delayVariance, settings.autoInteract,
+      settings.maxInteractions, settings.repetitionCount, settings.saveHistory,
+      settings.botMode, settings.openingMessage, settings.stopKeywords, settings.chatMode]);
 
-  const createConversationRecord = async (title: string, id: string) => {
-    if (!saveHistory) return id;
-    const row: Record<string, unknown> = {
-      id,
-      user_id: user.id,
-      title: title.slice(0, 80) || '(Auto-started conversation)',
-      model1_type: model1, model1_version: modelVersion1,
-      model1_temperature: temperature1, model1_max_tokens: maxTokens1,
-      model2_type: model2, model2_version: modelVersion2,
-      model2_temperature: temperature2, model2_max_tokens: maxTokens2,
-      interaction_limit: maxInteractionsRef.current,
-    };
-    if (currentExperimentId) row.experiment_id = currentExperimentId;
-    const { data, error } = await supabase.from('conversations').insert(row).select('id').single();
-
-    if (error) {
-      setErrors(prev => [...prev, `History unavailable: ${error.message}`]);
-      return null;
-    }
-    return data?.id ?? null;
-  };
-
-  const generateAIResponse = useCallback(async (
-    config: ChatConfig,
-    currentMessages: Message[],
-    isFirstAI: boolean,
-    dbConversationId: string | null,
-    localConversationId: string,
-    currentCount: number,
-    repetitionIndex: number,
-    onChainComplete: (trigger: string) => void
-  ): Promise<void> => {
-    try {
-      const myBotIndex: 1 | 2 = isFirstAI ? 1 : 2;
-
-      // Remap roles from this bot's perspective:
-      // - Own previous messages stay as 'assistant'
-      // - The other bot's messages become 'user'
-      const remappedMessages = currentMessages.map(m => {
-        if (m.role !== 'assistant') return m;
-        return { ...m, role: (m.botIndex === myBotIndex ? 'assistant' : 'user') as const };
-      });
-
-      // Check if stopped before making the API call
-      if (isStoppedRef.current) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Create abort controller for this request
-      const ac = new AbortController();
-      abortControllerRef.current = ac;
-
-      const response = await generateResponse(config, remappedMessages, ac.signal);
-      abortControllerRef.current = null;
-
-      // Check again after response in case stop was pressed during the request
-      if (isStoppedRef.current) {
-        setIsLoading(false);
-        return;
-      }
-      const taggedResponse: Message = {
-        ...response,
-        botIndex: myBotIndex,
-        modelVersion: config.modelVersion,
-        temperature: config.temperature,
-        systemPrompt: config.systemPrompt,
-        conversationId: localConversationId,
-        repetitionNumber: repetitionIndex,
-      };
-
-      setMessages(prev => [...prev, taggedResponse]);
-
-      if (dbConversationId) {
-        saveMessageToDb(dbConversationId, taggedResponse, 'assistant', isFirstAI ? botName1 : botName2);
-      }
-
-      // SPEC-04: check stop keywords before scheduling next turn
-      const keywords = stopKeywordsRef.current
-        .split(',')
-        .map(k => k.trim())
-        .filter(Boolean);
-      if (keywords.length > 0 && !isStoppedRef.current) {
-        const lower = taggedResponse.content.toLowerCase();
-        const matched = keywords.find(k => lower.includes(k.toLowerCase()));
-        if (matched) {
-          setStoppingTriggers(prev => ({ ...prev, [localConversationId]: `keyword:${matched}` }));
-          onChainComplete(`keyword:${matched}`);
-          return;
-        }
-      }
-
-      if (autoInteractRef.current && currentCount < maxInteractionsRef.current - 1 && !isStoppedRef.current) {
-        const otherConfig: ChatConfig = isFirstAI ? {
-          model: model2, apiKey: apiKey2, orgId: orgId2,
-          modelVersion: modelVersion2, temperature: temperature2,
-          maxTokens: maxTokens2, systemPrompt: buildEffectivePrompt(systemPrompt2, 2)
-        } : {
-          model: model1, apiKey: apiKey1, orgId: orgId1,
-          modelVersion: modelVersion1, temperature: temperature1,
-          maxTokens: maxTokens1, systemPrompt: buildEffectivePrompt(systemPrompt1, 1)
-        };
-
-        const prevWords = taggedResponse.wordCount ?? 0;
-        const computedDelay = delayVarianceRef.current
-          ? (responseDelayRef.current + prevWords * 0.05) * 1000
-          : responseDelayRef.current * 1000;
-
-        pendingTimeoutRef.current = setTimeout(() => {
-          setInteractionCount(currentCount + 1);
-          generateAIResponse(
-            otherConfig, [...currentMessages, taggedResponse], !isFirstAI,
-            dbConversationId, localConversationId, currentCount + 1, repetitionIndex, onChainComplete
-          );
-        }, computedDelay);
-      } else {
-        setStoppingTriggers(prev => ({ ...prev, [localConversationId]: 'turn_count' }));
-        onChainComplete('turn_count');
-      }
-    } catch (error) {
-      let msg = error instanceof Error
-        ? (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message)
-        : 'An unknown error occurred';
-      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
-        msg += ' — Troubleshooting: (1) Is your API key copied correctly and complete? (2) Is the key still active and not expired? (3) Does your API account have available credits? (4) Check your browser console for CORS errors.';
-      }
-      setErrors([msg]);
-      setIsLoading(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botName1, botName2, model1, model2, apiKey1, apiKey2, orgId1, orgId2,
-      modelVersion1, modelVersion2, temperature1, temperature2,
-      maxTokens1, maxTokens2, systemPrompt1, systemPrompt2]);
-
-  const startChain = useCallback(async (
-    userMsg: string,
-    baseMessages: Message[],
-    repetitionIndex: number,
-    localConversationId: string,
-    bot1StartsFirst: boolean
-  ) => {
-    const dbConversationId = await createConversationRecord(userMsg, localConversationId);
-
-    if (userMsg && dbConversationId) {
-      const userMessage = baseMessages.find(m => m.role === 'user' && !m.hidden && m.content === userMsg);
-      if (userMessage) {
-        supabase.from('messages').insert({
-          conversation_id: dbConversationId,
-          role: 'user',
-          model: 'User',
-          content: userMsg,
-          word_count: userMsg.split(/\s+/).filter(Boolean).length
-        });
-      }
-    }
-
-    const config1: ChatConfig = {
-      model: model1, apiKey: apiKey1, orgId: orgId1,
-      modelVersion: modelVersion1, temperature: temperature1,
-      maxTokens: maxTokens1, systemPrompt: buildEffectivePrompt(systemPrompt1, 1)
-    };
-    const config2: ChatConfig = {
-      model: model2, apiKey: apiKey2, orgId: orgId2,
-      modelVersion: modelVersion2, temperature: temperature2,
-      maxTokens: maxTokens2, systemPrompt: buildEffectivePrompt(systemPrompt2, 2)
-    };
-
-    const onChainComplete = (_trigger: string) => {
-      const nextRepetition = repetitionIndex + 1;
-      if (nextRepetition < repetitionCountRef.current) {
-        repetitionCurrentRef.current = nextRepetition;
-        setRepetitionCurrent(nextRepetition);
-        setInteractionCount(0);
-        pendingTimeoutRef.current = setTimeout(() => {
-          if (initialChainRef.current) {
-            startChain(
-              initialChainRef.current.userMsg,
-              initialChainRef.current.allMessages,
-              nextRepetition,
-              crypto.randomUUID(),
-              bot1StartsFirst
-            );
-          }
-        }, 1500);
-      } else {
-        setIsLoading(false);
-        setRepetitionCurrent(0);
-        repetitionCurrentRef.current = 0;
-      }
-    };
-
-    if (bot1StartsFirst) {
-      await generateAIResponse(config1, baseMessages, true, dbConversationId, localConversationId, 0, repetitionIndex, onChainComplete);
-    } else {
-      // SPEC-03 asymmetric: Bot B (Responder) generates first AI turn
-      await generateAIResponse(config2, baseMessages, false, dbConversationId, localConversationId, 0, repetitionIndex, onChainComplete);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [model1, model2, apiKey1, apiKey2, orgId1, orgId2,
-      modelVersion1, modelVersion2, temperature1, temperature2,
-      maxTokens1, maxTokens2, systemPrompt1, systemPrompt2, generateAIResponse]);
-
-  const handleSendMessage = async () => {
-    if (!validateConfigs() || isLoading) return;
-
-    if (pendingTimeoutRef.current) {
-      clearTimeout(pendingTimeoutRef.current);
-      pendingTimeoutRef.current = null;
-    }
-
-    isStoppedRef.current = false;
-    setIsLoading(true);
-    setCurrentView('chat');
-    setInteractionCount(0);
-    setRepetitionCurrent(0);
-    repetitionCurrentRef.current = 0;
-    setErrors([]);
-
-    // SPEC-01: increment run count for the active experiment
-    if (currentExperimentId) {
-      supabase.from('experiments')
-        .select('run_count')
-        .eq('id', currentExperimentId)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            supabase.from('experiments')
-              .update({ run_count: (data.run_count as number || 0) + 1, last_run_at: new Date().toISOString() })
-              .eq('id', currentExperimentId);
-          }
-        });
-    }
-
-    const localConversationId = crypto.randomUUID();
-
-    // SPEC-03: asymmetric mode with a scripted opener
-    if (botMode === 'asymmetric' && openingMessage.trim()) {
-      const opener: Message = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: openingMessage.trim(),
-        timestamp: Date.now(),
-        botIndex: 1,
-        conversationId: localConversationId,
-        wordCount: openingMessage.trim().split(/\s+/).filter(Boolean).length,
-        timeTaken: 0,
-        modelVersion: modelVersion1,
-        temperature: temperature1,
-        systemPrompt: systemPrompt1,
-        repetitionNumber: 0,
-      };
-
-      setMessages(prev => [...prev, opener]);
-
-      const allMessages: Message[] = [
-        { id: 'sys1', role: 'system', content: buildEffectivePrompt(systemPrompt1, 1), timestamp: Date.now() },
-        { id: 'sys2', role: 'system', content: buildEffectivePrompt(systemPrompt2, 2), timestamp: Date.now() },
-        ...messages,
-        opener,
-      ];
-
-      initialChainRef.current = { userMsg: '', allMessages, localConversationId, bot1StartsFirst: false };
-
-      try {
-        await startChain('', allMessages, 0, localConversationId, false);
-      } catch (error) {
-        setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
-        setIsLoading(false);
-      }
-      return;
-    }
-
-    // Symmetric mode (or asymmetric without a pre-scripted opener): existing flow
-    const trimmed = userInput.trim();
-
-    const newUserMessage: Message = trimmed
-      ? { id: crypto.randomUUID(), role: 'user', content: trimmed, timestamp: Date.now() }
-      : { id: crypto.randomUUID(), role: 'user', content: 'Please begin the conversation based on your instructions.', timestamp: Date.now(), hidden: true };
-
-    setMessages(prev => [...prev, newUserMessage]);
-
-    const allMessages: Message[] = [
-      { id: 'sys1', role: 'system', content: buildEffectivePrompt(systemPrompt1, 1), timestamp: Date.now() },
-      ...messages,
-      newUserMessage
-    ];
-
-    initialChainRef.current = { userMsg: trimmed, allMessages, localConversationId, bot1StartsFirst: true };
-
-    try {
-      await startChain(trimmed, allMessages, 0, localConversationId, true);
-    } catch (error) {
-      setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
-      setIsLoading(false);
-    }
-  };
-
-  const handleStop = () => {
-    isStoppedRef.current = true;
-    if (pendingTimeoutRef.current) {
-      clearTimeout(pendingTimeoutRef.current);
-      pendingTimeoutRef.current = null;
-    }
-    // Abort any in-flight API request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    setIsLoading(false);
-  };
-
+  // --- Scenario loading ---
   const handleLoadScenario = (scenario: Scenario) => {
-    setSystemPrompt1(scenario.botAPrompt);
-    setSystemPrompt2(scenario.botBPrompt);
-    setUserInput(scenario.sharedPrompt);
-    setStopKeywords(scenario.stopKeywords);
-    setBotMode(scenario.botMode);
+    bot.setSystemPrompt1(scenario.botAPrompt);
+    bot.setSystemPrompt2(scenario.botBPrompt);
+    settings.setUserInput(scenario.sharedPrompt);
+    settings.setStopKeywords(scenario.stopKeywords);
+    settings.setBotMode(scenario.botMode);
   };
 
-  const handleResetChat = () => {
-    // Stop any in-flight requests
-    isStoppedRef.current = true;
-    if (pendingTimeoutRef.current) {
-      clearTimeout(pendingTimeoutRef.current);
-      pendingTimeoutRef.current = null;
-    }
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    // Clear conversation state only — never touch prompts, bot names, or config
-    setMessages([]);
-    setInteractionCount(0);
-    setRepetitionCurrent(0);
-    repetitionCurrentRef.current = 0;
-    setIsLoading(false);
-    setErrors([]);
-    setStoppingTriggers({});
-    initialChainRef.current = null;
-    // Allow next conversation to start
-    isStoppedRef.current = false;
-  };
-
-  // SPEC-01: load a saved experiment — applies all config values
-  const handleLoadExperiment = useCallback((experiment: Experiment) => {
-    const c = experiment.config;
-    const s = (key: string) => typeof c[key] === 'string' ? String(c[key]) : undefined;
-    const n = (key: string) => typeof c[key] === 'number' ? Number(c[key]) : undefined;
-    const b = (key: string) => typeof c[key] === 'boolean' ? Boolean(c[key]) : undefined;
-
-    if (s('m1')) setModel1(s('m1') as AIModel);
-    if (s('mv1')) setModelVersion1(s('mv1')!);
-    if (n('t1') !== undefined) setTemperature1(n('t1')!);
-    if (n('mt1') !== undefined) setMaxTokens1(n('mt1')!);
-    if (s('sp1') !== undefined) setSystemPrompt1(s('sp1')!);
-    if (s('n1')) setBotName1(s('n1')!);
-    if (s('m2')) setModel2(s('m2') as AIModel);
-    if (s('mv2')) setModelVersion2(s('mv2')!);
-    if (n('t2') !== undefined) setTemperature2(n('t2')!);
-    if (n('mt2') !== undefined) setMaxTokens2(n('mt2')!);
-    if (s('sp2') !== undefined) setSystemPrompt2(s('sp2')!);
-    if (s('n2')) setBotName2(s('n2')!);
-    if (n('mi') !== undefined) setMaxInteractions(n('mi')!);
-    if (n('rd') !== undefined) setResponseDelay(n('rd')!);
-    if (b('dv') !== undefined) setDelayVariance(b('dv')!);
-    if (n('rc') !== undefined) setRepetitionCount(n('rc')!);
-    if (s('bm')) setBotMode(s('bm') as 'symmetric' | 'asymmetric');
-    if (s('om') !== undefined) setOpeningMessage(s('om')!);
-    if (s('sk') !== undefined) setStopKeywords(s('sk')!);
-    if (s('bc1')) setBubbleColor1(s('bc1')!);
-    if (s('bc2')) setBubbleColor2(s('bc2')!);
-    if (s('tc1')) setTextColor1(s('tc1')!);
-    if (s('tc2')) setTextColor2(s('tc2')!);
-
-    setCurrentExperimentId(experiment.id);
-    setCurrentExperimentName(experiment.name);
-  }, []);
-
-  // SPEC-01: save current config as a named experiment
-  const handleSaveExperimentConfirm = async () => {
-    if (!saveExpName.trim()) return;
-    setSavingExp(true);
-    const config = {
-      m1: model1, mv1: modelVersion1, t1: temperature1, mt1: maxTokens1, sp1: systemPrompt1, n1: botName1,
-      m2: model2, mv2: modelVersion2, t2: temperature2, mt2: maxTokens2, sp2: systemPrompt2, n2: botName2,
-      mi: maxInteractions, rd: responseDelay, dv: delayVariance, rc: repetitionCount,
-      bm: botMode, om: openingMessage, sk: stopKeywords,
-      bc1: bubbleColor1, bc2: bubbleColor2, tc1: textColor1, tc2: textColor2,
-    };
-    const { data, error } = await supabase.from('experiments').insert({
-      user_id: user.id,
-      name: saveExpName.trim(),
-      condition_label: saveExpCondition.trim(),
-      description: saveExpDesc.trim(),
-      config,
-    }).select('id').single();
-    setSavingExp(false);
-    if (!error && data) {
-      setCurrentExperimentId(data.id as string);
-      setCurrentExperimentName(saveExpName.trim());
-    }
-    setShowSaveExperiment(false);
-    setSaveExpName('');
-    setSaveExpCondition('');
-    setSaveExpDesc('');
-  };
-
-  // SPEC-06: download config as JSON file
-  const handleDownloadConfigJson = useCallback(() => {
-    const payload = {
-      m1: model1, mv1: modelVersion1, t1: temperature1, mt1: maxTokens1, sp1: systemPrompt1, n1: botName1,
-      m2: model2, mv2: modelVersion2, t2: temperature2, mt2: maxTokens2, sp2: systemPrompt2, n2: botName2,
-      mi: maxInteractions, rd: responseDelay, dv: delayVariance, rc: repetitionCount,
-      bm: botMode, om: openingMessage, sk: stopKeywords,
-      bc1: bubbleColor1, bc2: bubbleColor2, tc1: textColor1, tc2: textColor2,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ai2ai-config-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [model1, modelVersion1, temperature1, maxTokens1, systemPrompt1, botName1,
-      model2, modelVersion2, temperature2, maxTokens2, systemPrompt2, botName2,
-      maxInteractions, responseDelay, delayVariance, repetitionCount,
-      botMode, openingMessage, stopKeywords,
-      bubbleColor1, bubbleColor2, textColor1, textColor2]);
-
+  // --- Export / Share handlers ---
   const handleExportTxt = () => {
-    const lines = messages
+    const lines = engine.messages
       .filter(m => m.role !== 'system' && !m.hidden)
       .map(m => {
-        const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? botName1 : botName2);
+        const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? bot.botName1 : bot.botName2);
         return `[${label}]\n${m.content}`;
       });
     const blob = new Blob([lines.join('\n\n---\n\n')], { type: 'text/plain' });
@@ -781,19 +205,16 @@ export function ResearchInterface({
     URL.revokeObjectURL(url);
   };
 
-  // SPEC-05: research-grade CSV export
   const handleExportCsv = () => {
     const csvField = (val: string) => {
       let s = String(val);
       if (s.match(/^[=+\-@]/)) s = `'${s}`;
-      // Replace newlines with spaces to prevent breaking CSV row boundaries
       s = s.replace(/\r\n/g, ' ').replace(/[\r\n]/g, ' ');
       return `"${s.replace(/"/g, '""')}"`;
     };
 
-    const visibleMessages = messages.filter(m => m.role !== 'system' && !m.hidden);
+    const visibleMessages = engine.messages.filter(m => m.role !== 'system' && !m.hidden);
 
-    // pre-compute final turn count per conversationId
     const finalTurnByConv: Record<string, number> = {};
     visibleMessages.forEach(m => {
       if (m.conversationId) finalTurnByConv[m.conversationId] = (finalTurnByConv[m.conversationId] ?? 0) + 1;
@@ -808,28 +229,23 @@ export function ResearchInterface({
       'stopping_trigger', 'final_turn_number',
     ];
 
-    const rows = [headers];
+    const rows: string[][] = [headers];
 
     visibleMessages.forEach(m => {
-      const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? botName1 : botName2);
-      const fallbackPrompt = m.botIndex === 1 ? systemPrompt1 : m.botIndex === 2 ? systemPrompt2 : '';
-      const fallbackModel  = m.botIndex === 1 ? modelVersion1  : m.botIndex === 2 ? modelVersion2  : '';
-      const fallbackTemp   = m.botIndex === 1 ? temperature1   : m.botIndex === 2 ? temperature2   : '';
-
-      // SPEC-05: bot_role (only meaningful in asymmetric mode)
-      const botRole = botMode === 'asymmetric'
+      const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? bot.botName1 : bot.botName2);
+      const fallbackPrompt = m.botIndex === 1 ? bot.systemPrompt1 : m.botIndex === 2 ? bot.systemPrompt2 : '';
+      const fallbackModel  = m.botIndex === 1 ? bot.modelVersion1 : m.botIndex === 2 ? bot.modelVersion2 : '';
+      const fallbackTemp   = m.botIndex === 1 ? bot.temperature1  : m.botIndex === 2 ? bot.temperature2  : '';
+      const botRole = settings.botMode === 'asymmetric'
         ? (m.botIndex === 1 ? 'initiator' : m.botIndex === 2 ? 'responder' : '')
         : '';
-
-      // SPEC-05: system_prompt_hash for version tracking
       const promptText = m.systemPrompt ?? fallbackPrompt;
       const promptHash = promptText ? hashString(promptText) : '';
-
       const convId = m.conversationId ?? '';
 
       rows.push([
-        csvField(currentExperimentId ?? ''),
-        csvField(currentExperimentName ?? ''),
+        csvField(experiments.currentExperimentId ?? ''),
+        csvField(experiments.currentExperimentName ?? ''),
         csvField(sessionId ?? ''),
         csvField(conditionLabel ?? ''),
         csvField(String(m.repetitionNumber ?? 0)),
@@ -843,7 +259,7 @@ export function ResearchInterface({
         csvField(m.content),
         csvField(String(m.wordCount ?? '')),
         csvField(String(m.timeTaken ?? '')),
-        csvField(stoppingTriggers[convId] ?? ''),
+        csvField(engine.stoppingTriggers[convId] ?? ''),
         csvField(String(finalTurnByConv[convId] ?? '')),
       ]);
     });
@@ -858,32 +274,43 @@ export function ResearchInterface({
     URL.revokeObjectURL(url);
   };
 
-  // SPEC-06: copy a pre-configured share link to clipboard
+  const configPayload = useCallback(() => ({
+    m1: bot.model1, mv1: bot.modelVersion1, t1: bot.temperature1, mt1: bot.maxTokens1,
+    sp1: bot.systemPrompt1, n1: bot.botName1,
+    m2: bot.model2, mv2: bot.modelVersion2, t2: bot.temperature2, mt2: bot.maxTokens2,
+    sp2: bot.systemPrompt2, n2: bot.botName2,
+    mi: settings.maxInteractions, rd: settings.responseDelay, dv: settings.delayVariance,
+    rc: settings.repetitionCount, bm: settings.botMode, om: settings.openingMessage,
+    sk: settings.stopKeywords,
+    bc1: bot.bubbleColor1, bc2: bot.bubbleColor2, tc1: bot.textColor1, tc2: bot.textColor2,
+  }), [bot.model1, bot.modelVersion1, bot.temperature1, bot.maxTokens1, bot.systemPrompt1, bot.botName1,
+       bot.model2, bot.modelVersion2, bot.temperature2, bot.maxTokens2, bot.systemPrompt2, bot.botName2,
+       settings.maxInteractions, settings.responseDelay, settings.delayVariance, settings.repetitionCount,
+       settings.botMode, settings.openingMessage, settings.stopKeywords,
+       bot.bubbleColor1, bot.bubbleColor2, bot.textColor1, bot.textColor2]);
+
   const handleShareConfig = useCallback(() => {
-    const payload = {
-      m1: model1, mv1: modelVersion1, t1: temperature1, mt1: maxTokens1,
-      sp1: systemPrompt1, n1: botName1,
-      m2: model2, mv2: modelVersion2, t2: temperature2, mt2: maxTokens2,
-      sp2: systemPrompt2, n2: botName2,
-      mi: maxInteractions, rd: responseDelay, dv: delayVariance, rc: repetitionCount,
-      bm: botMode, om: openingMessage, sk: stopKeywords,
-      bc1: bubbleColor1, bc2: bubbleColor2, tc1: textColor1, tc2: textColor2,
-    };
-    const encoded = btoa(JSON.stringify(payload));
+    const encoded = btoa(JSON.stringify(configPayload()));
     const url = `${window.location.origin}${window.location.pathname}?cfg=${encoded}`;
     navigator.clipboard.writeText(url).then(() => {
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2500);
     });
-  }, [model1, modelVersion1, temperature1, maxTokens1, systemPrompt1, botName1,
-      model2, modelVersion2, temperature2, maxTokens2, systemPrompt2, botName2,
-      maxInteractions, responseDelay, delayVariance, repetitionCount,
-      botMode, openingMessage, stopKeywords,
-      bubbleColor1, bubbleColor2, textColor1, textColor2]);
+  }, [configPayload]);
 
-  // Unique run tokens (conversationIds) for the current session, for survey entry
+  const handleDownloadConfigJson = useCallback(() => {
+    const payload = configPayload();
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai2ai-config-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [configPayload]);
+
   const runTokens = [...new Set(
-    messages.filter(m => m.conversationId).map(m => m.conversationId!)
+    engine.messages.filter(m => m.conversationId).map(m => m.conversationId!)
   )];
 
   const handleNavigateBack = () => {
@@ -891,6 +318,8 @@ export function ResearchInterface({
     else if (currentView === 'setup') setCurrentView('dashboard');
     else onBack();
   };
+
+  const visibleMsgCount = engine.messages.filter(m => !m.hidden && m.role !== 'system').length;
 
   return (
     <div className="h-screen bg-gray-100 dark:bg-gray-950 flex flex-col overflow-hidden">
@@ -914,7 +343,7 @@ export function ResearchInterface({
           user={user}
           onClose={() => setShowUserSettings(false)}
           onOpenHistory={() => { setShowUserSettings(false); setShowHistory(true); }}
-          onDataDeleted={() => { setMessages([]); setShowUserSettings(false); }}
+          onDataDeleted={() => { engine.setMessages([]); setShowUserSettings(false); }}
           onAccountDeleted={() => { onSignOut(); }}
           onRewatchTour={() => { resetTourDismissed(); incrementTourCount(); setCurrentView('setup'); setShowTour(true); }}
           isOrganizer={isOrganizer}
@@ -923,19 +352,14 @@ export function ResearchInterface({
         />
       )}
 
-      {showWorkshopAdmin && (
-        <WorkshopAdmin onClose={() => setShowWorkshopAdmin(false)} />
-      )}
-
-      {showAdminDashboard && (
-        <AdminDashboard onClose={() => setShowAdminDashboard(false)} />
-      )}
+      {showWorkshopAdmin && <WorkshopAdmin onClose={() => setShowWorkshopAdmin(false)} />}
+      {showAdminDashboard && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
 
       {showHistory && (
         <ConversationHistory
           userId={user.id}
           onClose={() => setShowHistory(false)}
-          onLoad={(loaded) => { setMessages(loaded); setCurrentView('chat'); }}
+          onLoad={(loaded) => { engine.setMessages(loaded); setCurrentView('chat'); }}
         />
       )}
 
@@ -943,12 +367,12 @@ export function ResearchInterface({
         <ExperimentsPanel
           userId={user.id}
           onClose={() => setShowExperiments(false)}
-          onLoad={(exp) => { handleLoadExperiment(exp); setCurrentView('setup'); }}
+          onLoad={(exp) => { experiments.handleLoadExperiment(exp); setCurrentView('setup'); }}
         />
       )}
 
-      {/* SPEC-01: save experiment dialog */}
-      {showSaveExperiment && (
+      {/* Save experiment dialog */}
+      {experiments.showSaveExperiment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Save Experiment</h2>
@@ -957,8 +381,8 @@ export function ResearchInterface({
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">Name <span className="text-red-500">*</span></label>
                 <input
                   type="text"
-                  value={saveExpName}
-                  onChange={e => setSaveExpName(e.target.value)}
+                  value={experiments.saveExpName}
+                  onChange={e => experiments.setSaveExpName(e.target.value)}
                   placeholder="e.g. Algorithm Aversion Study — Condition A"
                   autoFocus
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -968,8 +392,8 @@ export function ResearchInterface({
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">Condition label</label>
                 <input
                   type="text"
-                  value={saveExpCondition}
-                  onChange={e => setSaveExpCondition(e.target.value)}
+                  value={experiments.saveExpCondition}
+                  onChange={e => experiments.setSaveExpCondition(e.target.value)}
                   placeholder="e.g. Condition A"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 />
@@ -977,8 +401,8 @@ export function ResearchInterface({
               <div>
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-200 block mb-1">Notes</label>
                 <textarea
-                  value={saveExpDesc}
-                  onChange={e => setSaveExpDesc(e.target.value)}
+                  value={experiments.saveExpDesc}
+                  onChange={e => experiments.setSaveExpDesc(e.target.value)}
                   placeholder="Pilot details, hypothesis, changes from last version…"
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
@@ -987,17 +411,17 @@ export function ResearchInterface({
             </div>
             <div className="flex justify-end gap-3 mt-5">
               <button
-                onClick={() => setShowSaveExperiment(false)}
+                onClick={() => experiments.setShowSaveExperiment(false)}
                 className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
               >
                 Cancel
               </button>
               <button
-                onClick={handleSaveExperimentConfirm}
-                disabled={!saveExpName.trim() || savingExp}
+                onClick={experiments.handleSaveExperimentConfirm}
+                disabled={!experiments.saveExpName.trim() || experiments.savingExp}
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {savingExp ? 'Saving…' : 'Save experiment'}
+                {experiments.savingExp ? 'Saving…' : 'Save experiment'}
               </button>
             </div>
           </div>
@@ -1010,7 +434,7 @@ export function ResearchInterface({
         <Dashboard
           userId={user.id}
           onNewConversation={() => setCurrentView('setup')}
-          onLoadExperiment={(exp) => { handleLoadExperiment(exp); setCurrentView('setup'); }}
+          onLoadExperiment={(exp) => { experiments.handleLoadExperiment(exp); setCurrentView('setup'); }}
           onLoadScenario={(s) => { handleLoadScenario(s); setCurrentView('setup'); }}
           onOpenHistory={() => setShowHistory(true)}
           onOpenExperiments={() => setShowExperiments(true)}
@@ -1019,40 +443,40 @@ export function ResearchInterface({
 
       {currentView === 'setup' && (
         <SetupPage
-          botName1={botName1} onBotName1Change={setBotName1}
-          model1={model1} onModel1Change={setModel1}
-          apiKey1={apiKey1} onApiKey1Change={setApiKey1}
-          orgId1={orgId1} onOrgId1Change={setOrgId1}
-          modelVersion1={modelVersion1} onModelVersion1Change={setModelVersion1}
-          temperature1={temperature1} onTemperature1Change={setTemperature1}
-          maxTokens1={maxTokens1} onMaxTokens1Change={setMaxTokens1}
-          systemPrompt1={systemPrompt1} onSystemPrompt1Change={setSystemPrompt1}
-          bubbleColor1={bubbleColor1} onBubbleColor1Change={setBubbleColor1}
-          textColor1={textColor1} onTextColor1Change={setTextColor1}
-          botName2={botName2} onBotName2Change={setBotName2}
-          model2={model2} onModel2Change={setModel2}
-          apiKey2={apiKey2} onApiKey2Change={setApiKey2}
-          orgId2={orgId2} onOrgId2Change={setOrgId2}
-          modelVersion2={modelVersion2} onModelVersion2Change={setModelVersion2}
-          temperature2={temperature2} onTemperature2Change={setTemperature2}
-          maxTokens2={maxTokens2} onMaxTokens2Change={setMaxTokens2}
-          systemPrompt2={systemPrompt2} onSystemPrompt2Change={setSystemPrompt2}
-          bubbleColor2={bubbleColor2} onBubbleColor2Change={setBubbleColor2}
-          textColor2={textColor2} onTextColor2Change={setTextColor2}
-          userInput={userInput} onUserInputChange={setUserInput}
-          autoInteract={autoInteract} onAutoInteractChange={setAutoInteract}
-          maxInteractions={maxInteractions} onMaxInteractionsChange={setMaxInteractions}
-          responseDelay={responseDelay} onResponseDelayChange={setResponseDelay}
-          delayVariance={delayVariance} onDelayVarianceChange={setDelayVariance}
-          repetitionCount={repetitionCount} onRepetitionCountChange={setRepetitionCount}
-          chatMode={chatMode} onChatModeChange={setChatMode}
-          saveHistory={saveHistory} onSaveHistoryChange={setSaveHistory}
-          botMode={botMode} onBotModeChange={setBotMode}
-          openingMessage={openingMessage} onOpeningMessageChange={setOpeningMessage}
-          stopKeywords={stopKeywords} onStopKeywordsChange={setStopKeywords}
-          onStartConversation={handleSendMessage}
+          botName1={bot.botName1} onBotName1Change={bot.setBotName1}
+          model1={bot.model1} onModel1Change={bot.setModel1}
+          apiKey1={bot.apiKey1} onApiKey1Change={bot.setApiKey1}
+          orgId1={bot.orgId1} onOrgId1Change={bot.setOrgId1}
+          modelVersion1={bot.modelVersion1} onModelVersion1Change={bot.setModelVersion1}
+          temperature1={bot.temperature1} onTemperature1Change={bot.setTemperature1}
+          maxTokens1={bot.maxTokens1} onMaxTokens1Change={bot.setMaxTokens1}
+          systemPrompt1={bot.systemPrompt1} onSystemPrompt1Change={bot.setSystemPrompt1}
+          bubbleColor1={bot.bubbleColor1} onBubbleColor1Change={bot.setBubbleColor1}
+          textColor1={bot.textColor1} onTextColor1Change={bot.setTextColor1}
+          botName2={bot.botName2} onBotName2Change={bot.setBotName2}
+          model2={bot.model2} onModel2Change={bot.setModel2}
+          apiKey2={bot.apiKey2} onApiKey2Change={bot.setApiKey2}
+          orgId2={bot.orgId2} onOrgId2Change={bot.setOrgId2}
+          modelVersion2={bot.modelVersion2} onModelVersion2Change={bot.setModelVersion2}
+          temperature2={bot.temperature2} onTemperature2Change={bot.setTemperature2}
+          maxTokens2={bot.maxTokens2} onMaxTokens2Change={bot.setMaxTokens2}
+          systemPrompt2={bot.systemPrompt2} onSystemPrompt2Change={bot.setSystemPrompt2}
+          bubbleColor2={bot.bubbleColor2} onBubbleColor2Change={bot.setBubbleColor2}
+          textColor2={bot.textColor2} onTextColor2Change={bot.setTextColor2}
+          userInput={settings.userInput} onUserInputChange={settings.setUserInput}
+          autoInteract={settings.autoInteract} onAutoInteractChange={settings.setAutoInteract}
+          maxInteractions={settings.maxInteractions} onMaxInteractionsChange={settings.setMaxInteractions}
+          responseDelay={settings.responseDelay} onResponseDelayChange={settings.setResponseDelay}
+          delayVariance={settings.delayVariance} onDelayVarianceChange={settings.setDelayVariance}
+          repetitionCount={settings.repetitionCount} onRepetitionCountChange={settings.setRepetitionCount}
+          chatMode={settings.chatMode} onChatModeChange={settings.setChatMode}
+          saveHistory={settings.saveHistory} onSaveHistoryChange={settings.setSaveHistory}
+          botMode={settings.botMode} onBotModeChange={settings.setBotMode}
+          openingMessage={settings.openingMessage} onOpeningMessageChange={settings.setOpeningMessage}
+          stopKeywords={settings.stopKeywords} onStopKeywordsChange={settings.setStopKeywords}
+          onStartConversation={() => engine.handleSendMessage(settings.userInput, setCurrentView)}
           onLoadScenario={handleLoadScenario}
-          isLoading={isLoading}
+          isLoading={engine.isLoading}
           userId={user.id}
         />
       )}
@@ -1060,55 +484,55 @@ export function ResearchInterface({
       {currentView === 'chat' && (
         <main className="flex-1 min-h-0 w-full px-2 sm:px-4 lg:px-6 py-3 overflow-hidden">
           <div className="flex-1 flex flex-col gap-2 min-w-0 min-h-0 overflow-hidden h-full">
-            <ErrorDisplay errors={errors} onClear={() => setErrors([])} />
+            <ErrorDisplay errors={engine.errors} onClear={() => engine.setErrors([])} />
             <ChatPanel
-              messages={messages}
-              isLoading={isLoading}
-              userInput={userInput}
-              onUserInputChange={setUserInput}
-              onSendMessage={handleSendMessage}
-              autoInteract={autoInteract}
-              onAutoInteractChange={setAutoInteract}
-              interactionCount={interactionCount}
-              maxInteractions={maxInteractions}
-              onMaxInteractionsChange={setMaxInteractions}
-              responseDelay={responseDelay}
-              onResponseDelayChange={setResponseDelay}
-              delayVariance={delayVariance}
-              onDelayVarianceChange={setDelayVariance}
-              repetitionCount={repetitionCount}
-              onRepetitionCountChange={setRepetitionCount}
-              repetitionCurrent={repetitionCurrent}
-              onExportTxt={messages.filter(m => !m.hidden && m.role !== 'system').length > 0 ? handleExportTxt : undefined}
-              onExportCsv={messages.filter(m => !m.hidden && m.role !== 'system').length > 0 ? handleExportCsv : undefined}
-              onResetChat={messages.length > 0 ? handleResetChat : undefined}
-              onStop={isLoading ? handleStop : undefined}
-              chatMode={chatMode}
-              onChatModeChange={setChatMode}
-              saveHistory={saveHistory}
-              onSaveHistoryChange={setSaveHistory}
-              botName1={botName1}
-              botName2={botName2}
-              bubbleColor1={bubbleColor1}
-              bubbleColor2={bubbleColor2}
-              textColor1={textColor1}
-              textColor2={textColor2}
+              messages={engine.messages}
+              isLoading={engine.isLoading}
+              userInput={settings.userInput}
+              onUserInputChange={settings.setUserInput}
+              onSendMessage={() => engine.handleSendMessage(settings.userInput, setCurrentView)}
+              autoInteract={settings.autoInteract}
+              onAutoInteractChange={settings.setAutoInteract}
+              interactionCount={engine.interactionCount}
+              maxInteractions={settings.maxInteractions}
+              onMaxInteractionsChange={settings.setMaxInteractions}
+              responseDelay={settings.responseDelay}
+              onResponseDelayChange={settings.setResponseDelay}
+              delayVariance={settings.delayVariance}
+              onDelayVarianceChange={settings.setDelayVariance}
+              repetitionCount={settings.repetitionCount}
+              onRepetitionCountChange={settings.setRepetitionCount}
+              repetitionCurrent={engine.repetitionCurrent}
+              onExportTxt={visibleMsgCount > 0 ? handleExportTxt : undefined}
+              onExportCsv={visibleMsgCount > 0 ? handleExportCsv : undefined}
+              onResetChat={engine.messages.length > 0 ? engine.handleResetChat : undefined}
+              onStop={engine.isLoading ? engine.handleStop : undefined}
+              chatMode={settings.chatMode}
+              onChatModeChange={settings.setChatMode}
+              saveHistory={settings.saveHistory}
+              onSaveHistoryChange={settings.setSaveHistory}
+              botName1={bot.botName1}
+              botName2={bot.botName2}
+              bubbleColor1={bot.bubbleColor1}
+              bubbleColor2={bot.bubbleColor2}
+              textColor1={bot.textColor1}
+              textColor2={bot.textColor2}
               sessionId={sessionId}
               conditionLabel={conditionLabel}
-              botMode={botMode}
-              onBotModeChange={setBotMode}
-              openingMessage={openingMessage}
-              onOpeningMessageChange={setOpeningMessage}
-              stopKeywords={stopKeywords}
-              onStopKeywordsChange={setStopKeywords}
+              botMode={settings.botMode}
+              onBotModeChange={settings.setBotMode}
+              openingMessage={settings.openingMessage}
+              onOpeningMessageChange={settings.setOpeningMessage}
+              stopKeywords={settings.stopKeywords}
+              onStopKeywordsChange={settings.setStopKeywords}
               onShareConfig={handleShareConfig}
               shareCopied={shareCopied}
-              onSaveExperiment={() => setShowSaveExperiment(true)}
+              onSaveExperiment={() => experiments.setShowSaveExperiment(true)}
               onDownloadConfigJson={handleDownloadConfigJson}
-              currentExperimentName={currentExperimentName || undefined}
-              onDetachExperiment={currentExperimentId ? () => { setCurrentExperimentId(null); setCurrentExperimentName(''); } : undefined}
-              runTokens={sessionId && !isLoading && runTokens.length > 0 ? runTokens : undefined}
-              scenarioCards={messages.length === 0 ? <ScenarioCards onSelect={handleLoadScenario} /> : undefined}
+              currentExperimentName={experiments.currentExperimentName || undefined}
+              onDetachExperiment={experiments.currentExperimentId ? experiments.detachExperiment : undefined}
+              runTokens={sessionId && !engine.isLoading && runTokens.length > 0 ? runTokens : undefined}
+              scenarioCards={engine.messages.length === 0 ? <ScenarioCards onSelect={handleLoadScenario} /> : undefined}
             />
           </div>
         </main>
