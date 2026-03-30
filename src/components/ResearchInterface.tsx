@@ -60,6 +60,8 @@ export function ResearchInterface({
     return show;
   });
   const [shareCopied, setShareCopied] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<(() => void) | null>(null);
 
   // --- Custom hooks ---
   const bot = useBotConfig({ saved, sharedConfig, chatMode: true });
@@ -313,10 +315,41 @@ export function ResearchInterface({
     engine.messages.filter(m => m.conversationId).map(m => m.conversationId!)
   )];
 
+  const hasMessages = engine.messages.filter(m => !m.hidden && m.role !== 'system').length > 0;
+
+  const navigateAwayFromChat = (destination: () => void) => {
+    if (currentView === 'chat' && hasMessages) {
+      setPendingNavigation(() => destination);
+      setShowLeaveConfirm(true);
+    } else {
+      destination();
+    }
+  };
+
+  const confirmLeave = (save: boolean) => {
+    if (save) {
+      // History is already saved to Supabase if saveHistory is on — just export as txt as a local backup
+      handleExportTxt();
+    }
+    engine.handleResetChat();
+    setShowLeaveConfirm(false);
+    pendingNavigation?.();
+    setPendingNavigation(null);
+  };
+
+  const cancelLeave = () => {
+    setShowLeaveConfirm(false);
+    setPendingNavigation(null);
+  };
+
   const handleNavigateBack = () => {
-    if (currentView === 'chat') setCurrentView('setup');
-    else if (currentView === 'setup') setCurrentView('dashboard');
-    else onBack();
+    if (currentView === 'chat') {
+      navigateAwayFromChat(() => setCurrentView('setup'));
+    } else if (currentView === 'setup') {
+      setCurrentView('dashboard');
+    } else {
+      onBack();
+    }
   };
 
   const visibleMsgCount = engine.messages.filter(m => !m.hidden && m.role !== 'system').length;
@@ -328,7 +361,7 @@ export function ResearchInterface({
       <Header
         currentView={currentView}
         onNavigateBack={handleNavigateBack}
-        onNavigateHome={() => setCurrentView('dashboard')}
+        onNavigateHome={() => navigateAwayFromChat(() => setCurrentView('dashboard'))}
         onSignOut={onSignOut}
         onOpenUserSettings={() => setShowUserSettings(true)}
         onOpenHistory={() => setShowHistory(true)}
@@ -428,12 +461,46 @@ export function ResearchInterface({
         </div>
       )}
 
+      {/* Leave conversation confirmation */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-sm">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Leave conversation?</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-5">
+              {settings.saveHistory
+                ? 'Your conversation is saved to history. Would you also like to download a local copy before leaving?'
+                : 'This conversation will be lost. Would you like to download it before leaving?'}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={cancelLeave}
+                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Stay
+              </button>
+              <button
+                onClick={() => confirmLeave(false)}
+                className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Leave
+              </button>
+              <button
+                onClick={() => confirmLeave(true)}
+                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700"
+              >
+                Save & leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* === VIEW ROUTING === */}
 
       {currentView === 'dashboard' && (
         <Dashboard
           userId={user.id}
-          onNewConversation={() => setCurrentView('setup')}
+          onNewConversation={() => { engine.handleResetChat(); setCurrentView('setup'); }}
           onLoadExperiment={(exp) => { experiments.handleLoadExperiment(exp); setCurrentView('setup'); }}
           onLoadScenario={(s) => { handleLoadScenario(s); setCurrentView('setup'); }}
           onOpenHistory={() => setShowHistory(true)}
