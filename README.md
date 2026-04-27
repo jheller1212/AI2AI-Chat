@@ -1,8 +1,8 @@
 # AI2AI Chat
 
-A research tool for running structured conversations between two AI models. Each bot is configured independently — different provider, model, system prompt, and generation parameters — and you watch them talk to each other. Useful for studying how models respond to each other, testing prompt strategies, or collecting dialogue data for research.
+A research tool for running structured conversations between two AI models, built for academic research at Maastricht University. Each bot is configured independently — different provider, model, system prompt, and generation parameters — and you watch them talk to each other. Useful for studying how models respond to each other, testing prompt strategies, or collecting dialogue data for research.
 
-**Live demo:** https://ai2aichat.netlify.app/
+**Live:** [ai2aichat.com](https://ai2aichat.com)
 
 ---
 
@@ -131,3 +131,7 @@ Connect the repo to [Netlify](https://netlify.com) and it will build and deploy 
 - [Supabase](https://supabase.com/) — auth and conversation storage
 - [Lucide React](https://lucide.dev/) — icons
 - [html2canvas](https://html2canvas.hertzen.com/) — screenshot export
+
+## Built by
+
+[Jonas Heller](https://jonasheller.info) — Assistant Professor of Marketing, Maastricht University.
