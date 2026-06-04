@@ -20,6 +20,43 @@ export interface WorkshopData {
   config: Record<string, unknown> | null;
 }
 
+const VALID_MODELS = new Set(['gpt4', 'claude', 'gemini', 'mistral']);
+const MAX_PROMPT_LEN = 2000;
+const MAX_NAME_LEN = 50;
+
+function sanitizeSharedConfig(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    // String fields: enforce max length
+    if (typeof v === 'string') {
+      const isPrompt = k === 'sp1' || k === 'sp2';
+      const isName = k === 'n1' || k === 'n2';
+      if (isPrompt) {
+        out[k] = v.slice(0, MAX_PROMPT_LEN);
+      } else if (isName) {
+        out[k] = v.slice(0, MAX_NAME_LEN);
+      } else if (k === 'm1' || k === 'm2') {
+        // Model enum: only accept known values
+        if (VALID_MODELS.has(v)) out[k] = v;
+      } else {
+        out[k] = v;
+      }
+    // Numeric fields: clamp to valid ranges
+    } else if (typeof v === 'number') {
+      if (k === 't1' || k === 't2') {
+        out[k] = Math.min(2, Math.max(0, v));
+      } else if (k === 'mt1' || k === 'mt2') {
+        out[k] = Math.min(32000, Math.max(1, Math.round(v)));
+      } else {
+        out[k] = v;
+      }
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
 // Parse URL parameters once on module load so they survive re-renders.
 function parseUrlParams() {
   const p = new URLSearchParams(window.location.search);
@@ -29,7 +66,12 @@ function parseUrlParams() {
   let sharedConfig: Record<string, unknown> | undefined;
   const cfg = p.get('cfg');
   if (cfg) {
-    try { sharedConfig = JSON.parse(atob(cfg)); } catch { /* invalid — ignore */ }
+    try {
+      const parsed = JSON.parse(atob(cfg));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        sharedConfig = sanitizeSharedConfig(parsed as Record<string, unknown>);
+      }
+    } catch { /* invalid — ignore */ }
   }
   return { sessionId, conditionLabel, sharedConfig, workshop };
 }

@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const SUPER_ADMIN = 'jonasheller89@gmail.com';
+const SUPER_ADMIN = Deno.env.get('SUPER_ADMIN_EMAIL') || '';
 
 const ALLOWED_ORIGINS = [
   'https://ai2aichat.com',
@@ -308,7 +308,9 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
       }
 
-      const code = crypto.randomUUID().slice(0, 8).toUpperCase();
+      const bytes = new Uint8Array(8);
+      crypto.getRandomValues(bytes);
+      const code = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase().slice(0, 12);
       const { error } = await admin
         .from('organizer_invite_codes')
         .insert({ code, created_by: user.id });
