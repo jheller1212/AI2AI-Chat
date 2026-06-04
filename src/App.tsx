@@ -9,14 +9,13 @@ const ResearchInterface = lazy(() => import('./components/ResearchInterface').th
 const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
 const TermsOfUse = lazy(() => import('./components/TermsOfUse').then(m => ({ default: m.TermsOfUse })));
-import { clearVault, loadVault, loadVaultFromServer, syncVaultToServer, saveVault } from './lib/apiKeyVault';
-import type { ProviderVault } from './lib/apiKeyVault';
+import { clearVault, loadVault, loadVaultFromServer, syncVaultToServer } from './lib/apiKeyVault';
 
 export interface WorkshopData {
   name: string;
   welcome: string;
   provider: string;
-  apiKey: string;
+  hasKey: boolean;
   scenario: { botAPrompt: string; botBPrompt: string; sharedPrompt: string; stopKeywords: string; botMode: 'symmetric' | 'asymmetric' } | null;
   config: Record<string, unknown> | null;
 }
@@ -87,15 +86,6 @@ function App() {
       if (error || !data || data.error) return;
 
       setWorkshopData(data as WorkshopData);
-
-      // Inject the workshop API key into the user's vault
-      if (data.apiKey && data.provider) {
-        const vault = loadVault();
-        const provider = data.provider as keyof ProviderVault;
-        if (provider in vault) {
-          saveVault({ ...vault, [provider]: data.apiKey });
-        }
-      }
     } catch { /* non-blocking */ }
   };
 

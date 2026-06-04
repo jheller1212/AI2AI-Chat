@@ -150,10 +150,6 @@ export function ResearchInterface({
       if (c.n2) bot.setBotName2(c.n2 as string);
     }
 
-    if (workshopData.apiKey) {
-      bot.setApiKey1(workshopData.apiKey);
-      bot.setApiKey2(workshopData.apiKey);
-    }
   }, [workshopData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Persist settings ---
