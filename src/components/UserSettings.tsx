@@ -81,12 +81,14 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAc
   const handleDeleteAllData = async () => {
     setDeleting(true);
     try {
-      const [convRes, expRes] = await Promise.all([
+      const [convRes, expRes, promptRes] = await Promise.all([
         supabase.from('conversations').delete().eq('user_id', user.id),
         supabase.from('experiments').delete().eq('user_id', user.id),
+        supabase.from('prompt_versions').delete().eq('user_id', user.id),
       ]);
-      const error = convRes.error ?? expRes.error;
+      const error = convRes.error ?? expRes.error ?? promptRes.error;
       if (error) throw error;
+      setDeleteStep('idle');
       onDataDeleted?.();
     } catch (err) {
       setMessage({ text: err instanceof Error ? err.message : 'Failed to delete data', type: 'error' });
