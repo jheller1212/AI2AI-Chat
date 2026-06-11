@@ -91,7 +91,9 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const stored = localStorage.getItem('ai2ai_theme');
     if (stored) return stored === 'dark';
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    // Default to dark — the app's signature look is the navy aurora theme
+    // (matching the landing page). Users can switch to light via the header.
+    return true;
   });
 
   useEffect(() => {

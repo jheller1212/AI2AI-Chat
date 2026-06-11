@@ -46,10 +46,10 @@ function timeAgo(iso: string): string {
 function SkeletonSection() {
   return (
     <div>
-      <div className="h-4 w-40 rounded bg-gray-100 dark:bg-gray-800 shimmer mb-3" />
+      <div className="h-4 w-40 rounded bg-gray-100 dark:bg-white/5 shimmer mb-3" />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {[0, 1, 2].map((i) => (
-          <div key={i} className="h-[68px] rounded-lg bg-gray-100 dark:bg-gray-800 shimmer" />
+          <div key={i} className="h-[68px] rounded-lg bg-gray-100 dark:bg-white/5 shimmer" />
         ))}
       </div>
     </div>
@@ -156,12 +156,12 @@ export function Dashboard({
                       key={c.id}
                       variants={staggerItem}
                       whileHover={{ y: -3 }}
-                      className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lab-float hover:shadow-lab-lift hover:border-sky-300 dark:hover:border-sky-600 transition-shadow"
+                      className="p-3 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.06] dark:backdrop-blur-md shadow-lab-float hover:shadow-lab-lift hover:border-sky-300 dark:hover:border-sky-600 transition-shadow"
                     >
                       <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate mb-1">
                         {c.title || '(Untitled)'}
                       </p>
-                      <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
+                      <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-400">
                         <span>{PROVIDER_LABELS[c.model1_type] || c.model1_type} vs {PROVIDER_LABELS[c.model2_type] || c.model2_type}</span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
@@ -202,7 +202,7 @@ export function Dashboard({
                       whileHover={{ y: -3 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => onLoadExperiment(exp)}
-                      className="text-left p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lab-float hover:shadow-lab-lift hover:border-orange-300 dark:hover:border-orange-600 transition-shadow group"
+                      className="text-left p-3 rounded-lg border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[0.06] dark:backdrop-blur-md shadow-lab-float hover:shadow-lab-lift hover:border-orange-300 dark:hover:border-orange-600 transition-shadow group"
                     >
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">
@@ -215,7 +215,7 @@ export function Dashboard({
                           {exp.condition_label}
                         </span>
                       )}
-                      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 dark:text-gray-400">
                         {exp.run_count > 0 && <span>{exp.run_count} run{exp.run_count !== 1 ? 's' : ''}</span>}
                         <span>{timeAgo(exp.created_at)}</span>
                       </div>
