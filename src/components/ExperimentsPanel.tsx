@@ -67,10 +67,14 @@ export function ExperimentsPanel({ userId, onClose, onLoad }: ExperimentsPanelPr
     e.stopPropagation();
     if (!confirm('Delete this experiment? Conversation runs are not affected.')) return;
     setDeleting(id);
-    await supabase.from('experiments').delete().eq('id', id);
+    const { error } = await supabase.from('experiments').delete().eq('id', id);
+    setDeleting(null);
+    if (error) {
+      setLoadError(`Failed to delete experiment: ${error.message}`);
+      return;
+    }
     setExperiments(prev => prev.filter(ex => ex.id !== id));
     if (selectedId === id) setSelectedId(null);
-    setDeleting(null);
   };
 
   const selected = experiments.find(ex => ex.id === selectedId);

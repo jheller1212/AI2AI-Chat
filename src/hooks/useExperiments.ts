@@ -27,6 +27,7 @@ export function useExperiments(opts: UseExperimentsOptions) {
   const [saveExpCondition, setSaveExpCondition] = useState('');
   const [saveExpDesc, setSaveExpDesc] = useState('');
   const [savingExp, setSavingExp] = useState(false);
+  const [saveExpError, setSaveExpError] = useState<string | null>(null);
 
   const handleLoadExperiment = useCallback((experiment: Experiment) => {
     const c = experiment.config;
@@ -67,6 +68,7 @@ export function useExperiments(opts: UseExperimentsOptions) {
   const handleSaveExperimentConfirm = async () => {
     if (!saveExpName.trim()) return;
     setSavingExp(true);
+    setSaveExpError(null);
     const config = { ...opts.getBotConfig(), ...opts.getSettingsConfig() };
     const { data, error } = await supabase.from('experiments').insert({
       user_id: opts.userId,
@@ -76,10 +78,12 @@ export function useExperiments(opts: UseExperimentsOptions) {
       config,
     }).select('id').single();
     setSavingExp(false);
-    if (!error && data) {
-      setCurrentExperimentId(data.id as string);
-      setCurrentExperimentName(saveExpName.trim());
+    if (error || !data) {
+      setSaveExpError(error?.message ?? 'Failed to save experiment');
+      return;
     }
+    setCurrentExperimentId(data.id as string);
+    setCurrentExperimentName(saveExpName.trim());
     setShowSaveExperiment(false);
     setSaveExpName('');
     setSaveExpCondition('');
@@ -99,6 +103,7 @@ export function useExperiments(opts: UseExperimentsOptions) {
     saveExpCondition, setSaveExpCondition,
     saveExpDesc, setSaveExpDesc,
     savingExp,
+    saveExpError,
     handleLoadExperiment,
     handleSaveExperimentConfirm,
     detachExperiment,
