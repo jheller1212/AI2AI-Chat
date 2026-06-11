@@ -47,19 +47,30 @@
 @layer components {
   /* Glassmorphism surface */
   .glass {
-    @apply bg-white/70 backdrop-blur-lg border-b border-lab-border;
+    @apply bg-white/80 backdrop-blur-xl border-b border-lab-border shadow-lab-float;
   }
 
   .dark .glass {
-    @apply bg-gray-900/70 border-gray-700;
+    @apply bg-gray-900/80 border-gray-800;
   }
 
   /* Floating lab panel */
   .lab-panel {
-    @apply bg-white border border-lab-border rounded-lab-card shadow-lab-soft;
+    @apply bg-white border border-lab-border rounded-lab-card shadow-lab-float;
   }
 
   .dark .lab-panel {
+    @apply bg-gray-800 border-gray-700;
+  }
+
+  /* Card surface with rest → hover elevation (opt-in) */
+  .lab-card {
+    @apply bg-white border border-lab-border rounded-lab-card shadow-lab-float transition-all duration-300 ease-lab;
+  }
+  .lab-card-hover {
+    @apply hover:shadow-lab-lift hover:-translate-y-0.5;
+  }
+  .dark .lab-card {
     @apply bg-gray-800 border-gray-700;
   }
 
