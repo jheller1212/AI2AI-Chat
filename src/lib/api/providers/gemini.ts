@@ -37,7 +37,12 @@ export class GeminiProvider implements APIProvider {
             ...(systemText ? { systemInstruction: { parts: [{ text: systemText }] } } : {}),
             generationConfig: {
               temperature: config.temperature,
-              maxOutputTokens: config.maxTokens
+              maxOutputTokens: config.maxTokens,
+              // Gemini 2.5 models think by default and thought tokens count against
+              // maxOutputTokens — disable on Flash variants (2.5 Pro cannot disable)
+              ...(config.model.includes('2.5-flash')
+                ? { thinkingConfig: { thinkingBudget: 0 } }
+                : {})
             }
           })
         }
@@ -56,8 +61,18 @@ export class GeminiProvider implements APIProvider {
     }
 
     const data = await response.json();
-    const content = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (typeof content !== 'string') throw new Error('Unexpected response format from Gemini');
+    // Thinking models can emit thought parts before the answer — take the first
+    // non-thought text part rather than assuming parts[0]
+    const parts: Array<{ text?: string; thought?: boolean }> =
+      data?.candidates?.[0]?.content?.parts ?? [];
+    const content = parts.find(p => typeof p.text === 'string' && !p.thought)?.text;
+    if (typeof content !== 'string') {
+      throw new Error(
+        data?.candidates?.[0]?.finishReason === 'MAX_TOKENS'
+          ? 'Gemini used the entire token budget before producing a reply — increase Max Tokens.'
+          : 'Unexpected response format from Gemini'
+      );
+    }
 
     return { content };
   }
