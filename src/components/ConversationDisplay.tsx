@@ -99,9 +99,9 @@ export function ConversationDisplay({
 
         const repDivider = showRepDivider ? (
           <div key={`rep-${message.id}`} className="flex items-center gap-3 py-1">
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-600" />
+            <div className="flex-1 h-px bg-gray-200 dark:bg-[#16294a]" />
             <span className="text-xs text-gray-400 dark:text-gray-500 font-medium px-2">Run {repNum}</span>
-            <div className="flex-1 h-px bg-gray-200 dark:bg-gray-600" />
+            <div className="flex-1 h-px bg-gray-200 dark:bg-[#16294a]" />
           </div>
         ) : null;
 
@@ -111,7 +111,7 @@ export function ConversationDisplay({
               {repDivider}
               <motion.div
                 {...messageEntrance}
-                className="flex flex-col gap-1 px-3 py-2 rounded-xl shadow-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 mr-12"
+                className="flex flex-col gap-1 px-3 py-2 rounded-xl shadow-sm bg-white dark:bg-[#16294a] border border-gray-200 dark:border-white/10 mr-12"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

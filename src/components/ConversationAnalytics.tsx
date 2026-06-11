@@ -66,7 +66,7 @@ function buildTextReport(
 
 function StatRow({ label, icon, v1, v2 }: { label: string; icon?: React.ReactNode; v1: string; v2: string }) {
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center py-1.5 border-b border-gray-100 dark:border-gray-700/60 last:border-0">
+    <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center py-1.5 border-b border-gray-100 dark:border-white/10/60 last:border-0">
       <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1.5">{icon}{label}</span>
       <span className="text-sm font-semibold tabular-nums text-right w-24" style={{ color: COLOR1 }}>{v1}</span>
       <span className="text-sm font-semibold tabular-nums text-right w-24" style={{ color: COLOR2 }}>{v2}</span>
@@ -119,7 +119,7 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
         </div>
         <button
           onClick={handleDownload}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-white/10 rounded-lg hover:bg-gray-100 dark:hover:bg-[#16294a] transition-colors flex-shrink-0"
         >
           <Download className="w-3.5 h-3.5" />
           Report (.txt)
@@ -128,15 +128,15 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
 
       {/* Headline takeaway */}
       {spokeMore && (
-        <div className="rounded-xl bg-gradient-to-r from-indigo-50 to-emerald-50 dark:from-indigo-900/20 dark:to-emerald-900/20 border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+        <div className="rounded-xl bg-gradient-to-r from-indigo-50 to-emerald-50 dark:from-indigo-900/20 dark:to-emerald-900/20 border border-gray-200 dark:border-white/10 px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
           <span className="font-semibold" style={{ color: spokeMore === botName1 ? c1 : c2 }}>{spokeMore}</span>
           {' '}produced more total words ({fmtInt(Math.max(bot1.totalWords, bot2.totalWords))} vs {fmtInt(Math.min(bot1.totalWords, bot2.totalWords))}).
         </div>
       )}
 
       {/* Descriptives */}
-      <section className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center pb-2 mb-1 border-b border-gray-200 dark:border-gray-600">
+      <section className="rounded-xl border border-gray-200 dark:border-white/10 p-4">
+        <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center pb-2 mb-1 border-b border-gray-200 dark:border-white/10">
           <span className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Metric</span>
           <span className="text-xs font-semibold text-right w-24 truncate" style={{ color: c1 }} title={botName1}>{botName1}</span>
           <span className="text-xs font-semibold text-right w-24 truncate" style={{ color: c2 }} title={botName2}>{botName2}</span>
@@ -160,7 +160,7 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
       </section>
 
       {/* Significance tests */}
-      <section className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+      <section className="rounded-xl border border-gray-200 dark:border-white/10 p-4">
         <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Are the differences significant?</h4>
         {insufficient ? (
           <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -194,7 +194,7 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
 
       {/* Distinctive words */}
       {(distinctive.botA.length > 0 || distinctive.botB.length > 0) && (
-        <section className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+        <section className="rounded-xl border border-gray-200 dark:border-white/10 p-4">
           <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             Distinctive words
@@ -210,7 +210,7 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
                     col.words.map((w) => (
                       <span
                         key={w.word}
-                        className="px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                        className="px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-[#16294a] text-gray-700 dark:text-gray-300"
                         title={`used ${col.name === botName1 ? w.countA : w.countB}× here vs ${col.name === botName1 ? w.countB : w.countA}× by the other`}
                       >
                         {w.word}
