@@ -11,12 +11,12 @@ const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
   claude: [
     { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5 (recommended for workshops)' },
     { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
-    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku' },
-    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet' },
+    { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
   ],
   gemini: [
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (recommended for workshops)' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro' },
+    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite (recommended for workshops)' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
   ],
   mistral: [
     { id: 'mistral-small-latest', name: 'Mistral Small (recommended for workshops)' },
