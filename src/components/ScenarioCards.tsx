@@ -88,10 +88,10 @@ export function ScenarioCards({ onSelect }: ScenarioCardsProps) {
                 onSelect(scenario);
                 setLoadedId(scenario.id);
               }}
-              className={`relative text-left p-4 rounded-xl border bg-white dark:bg-gray-800 shadow-lab-float transition-shadow hover:shadow-lab-lift ${
+              className={`relative text-left p-4 rounded-xl border bg-white dark:bg-white/[0.06] dark:backdrop-blur-md shadow-lab-float transition-shadow hover:shadow-lab-lift ${
                 selected
                   ? 'border-orange-400 dark:border-orange-500'
-                  : 'border-gray-200 dark:border-gray-700'
+                  : 'border-gray-200 dark:border-white/10'
               }`}
             >
               {selected && (
