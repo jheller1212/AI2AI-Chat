@@ -21,8 +21,10 @@ jobs:
           echo "HTTP $code"
           # 404 (workshop not found) is the expected, healthy response —
           # it proves the function ran a SELECT against the database.
-          # 5xx or connection failure means the project is down/paused.
-          if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
-            echo "Supabase project appears to be down or paused" >&2
+          # 200 would mean a real workshop named keepalive-ping exists.
+          # Anything else (401 = JWT verification re-enabled by mistake,
+          # 5xx, 000 = paused/unreachable) means no DB activity happened.
+          if [ "$code" -ne 404 ] && [ "$code" -ne 200 ]; then
+            echo "Unexpected status $code — function may not be reaching the database" >&2
             exit 1
           fi
