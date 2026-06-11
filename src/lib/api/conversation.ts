@@ -11,6 +11,25 @@ const FALLBACK_DELAYS_MS = [5_000, 15_000];
 /** Maximum number of ms we will honour from a Retry-After header. */
 const MAX_RETRY_AFTER_MS = 60_000;
 
+/** Sleep that rejects immediately if the signal aborts, so Stop interrupts retry waits. */
+function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Aborted', 'AbortError'));
+      return;
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
 export async function generateResponse(
   config: ChatConfig,
   messages: Message[],
@@ -34,7 +53,7 @@ export async function generateResponse(
       if (lastError instanceof APIError && lastError.retryAfter != null) {
         delayMs = Math.min(lastError.retryAfter * 1000, MAX_RETRY_AFTER_MS);
       }
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      await abortableDelay(delayMs, signal);
     }
 
     try {
