@@ -66,6 +66,7 @@ export function LiveConversation() {
   const reduced = useReducedMotion();
   const [count, setCount] = useState(reduced ? SCRIPT.length : 0);
   const [typingWho, setTypingWho] = useState<Who | null>(null);
+  const [loopId, setLoopId] = useState(0); // bumped each loop so keys stay stable within a loop
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -86,6 +87,7 @@ export function LiveConversation() {
           if (cancelled) return;
           i = 0;
           setCount(0);
+          setLoopId((l) => l + 1);
           run();
         }, 3200);
         return;
@@ -117,7 +119,7 @@ export function LiveConversation() {
   return (
     <div
       aria-hidden
-      className="w-full max-w-md rounded-2xl border border-white/15 bg-white/10 backdrop-blur-xl shadow-2xl overflow-hidden"
+      className="w-full max-w-md rounded-2xl border border-white/15 bg-white/10 backdrop-blur-md shadow-2xl overflow-hidden"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
@@ -142,7 +144,7 @@ export function LiveConversation() {
         <AnimatePresence initial={false}>
           {shown.map((line, idx) => (
             <motion.div
-              key={`${count}-${idx}`}
+              key={`${loopId}-${idx}`}
               layout
               initial={{ opacity: 0, y: 12, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
