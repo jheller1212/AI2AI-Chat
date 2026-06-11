@@ -90,6 +90,12 @@ export function useExperiments(opts: UseExperimentsOptions) {
     setSaveExpDesc('');
   };
 
+  // Wraps the dialog toggle so a stale save error never shows on reopen
+  const toggleSaveExperiment = useCallback((open: boolean) => {
+    setSaveExpError(null);
+    setShowSaveExperiment(open);
+  }, []);
+
   const detachExperiment = () => {
     setCurrentExperimentId(null);
     setCurrentExperimentName('');
@@ -98,7 +104,7 @@ export function useExperiments(opts: UseExperimentsOptions) {
   return {
     currentExperimentId,
     currentExperimentName,
-    showSaveExperiment, setShowSaveExperiment,
+    showSaveExperiment, setShowSaveExperiment: toggleSaveExperiment,
     saveExpName, setSaveExpName,
     saveExpCondition, setSaveExpCondition,
     saveExpDesc, setSaveExpDesc,
