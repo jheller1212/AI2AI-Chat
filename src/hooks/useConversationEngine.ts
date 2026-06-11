@@ -198,6 +198,11 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
         onChainComplete('turn_count');
       }
     } catch (error) {
+      // Stop button aborts in-flight requests and retry waits — not an error to surface
+      if (error instanceof Error && error.name === 'AbortError' && isStoppedRef.current) {
+        setIsLoading(false);
+        return;
+      }
       let msg = error instanceof Error
         ? (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message)
         : 'An unknown error occurred';
