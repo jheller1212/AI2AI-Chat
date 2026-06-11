@@ -16,11 +16,11 @@ export const centerPanelVariants: Variants = {
   exit: { opacity: 0, scale: 0.97, y: 6, transition: { duration: 0.14 } },
 };
 
-/** Right-side drawer: slide in from the edge. */
+/** Right-side drawer: true edge-slide from off-screen right. */
 export const drawerPanelVariants: Variants = {
-  initial: { opacity: 0, x: 48 },
-  animate: { opacity: 1, x: 0, transition: { duration: 0.26, ease: EASE } },
-  exit: { opacity: 0, x: 48, transition: { duration: 0.18, ease: 'easeIn' } },
+  initial: { x: '100%' },
+  animate: { x: 0, transition: { duration: 0.32, ease: EASE } },
+  exit: { x: '100%', transition: { duration: 0.24, ease: 'easeIn' } },
 };
 
 /** Staggered list container + item, for card grids. */
