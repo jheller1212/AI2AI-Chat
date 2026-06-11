@@ -8,8 +8,10 @@ interface DbConversation {
   title: string | null;
   model1_type: string;
   model1_version: string;
+  model1_temperature: number | null;
   model2_type: string;
   model2_version: string;
+  model2_temperature: number | null;
   created_at: string;
   messages: { count: number }[];
 }
@@ -58,7 +60,7 @@ export function ConversationHistory({ userId, onClose, onLoad }: ConversationHis
         // Single query with embedded message count — avoids N+1 queries
         const { data, error } = await supabase
           .from('conversations')
-          .select('id, title, model1_type, model1_version, model2_type, model2_version, created_at, messages(count)')
+          .select('id, title, model1_type, model1_version, model1_temperature, model2_type, model2_version, model2_temperature, created_at, messages(count)')
           .eq('user_id', userId)
           .order('created_at', { ascending: false })
           .limit(50);
@@ -97,14 +99,44 @@ export function ConversationHistory({ userId, onClose, onLoad }: ConversationHis
   };
 
   const handleLoad = () => {
-    const mapped: Message[] = selectedMessages.map((m) => ({
-      id: m.id,
-      role: (m.role === 'user' ? 'user' : 'assistant') as Message['role'],
-      content: m.content,
-      timestamp: new Date(m.created_at).getTime(),
-      wordCount: m.word_count,
-      timeTaken: m.time_taken,
-    }));
+    const conv = conversations.find((c) => c.id === selectedId);
+
+    // The messages table stores the bot display label, not the bot slot.
+    // Recover the slot from the label when the two bots have distinct labels;
+    // otherwise fall back to strict alternation (bots always alternate turns).
+    const assistantLabels = [...new Set(
+      selectedMessages.filter((m) => m.role !== 'user').map((m) => m.model)
+    )];
+    const labelToIndex = new Map<string, 1 | 2>();
+    if (assistantLabels.length === 2) {
+      labelToIndex.set(assistantLabels[0], 1);
+      labelToIndex.set(assistantLabels[1], 2);
+    }
+    let alternating: 1 | 2 = 1;
+
+    const mapped: Message[] = selectedMessages.map((m) => {
+      const base: Message = {
+        id: m.id,
+        role: (m.role === 'user' ? 'user' : 'assistant') as Message['role'],
+        content: m.content,
+        timestamp: new Date(m.created_at).getTime(),
+        wordCount: m.word_count,
+        timeTaken: m.time_taken,
+        conversationId: conv?.id,
+      };
+      if (base.role !== 'assistant') return base;
+
+      const botIndex = labelToIndex.get(m.model) ?? alternating;
+      if (!labelToIndex.has(m.model)) alternating = alternating === 1 ? 2 : 1;
+
+      return {
+        ...base,
+        botIndex,
+        model: (botIndex === 1 ? conv?.model1_type : conv?.model2_type) as Message['model'],
+        modelVersion: botIndex === 1 ? conv?.model1_version : conv?.model2_version,
+        temperature: (botIndex === 1 ? conv?.model1_temperature : conv?.model2_temperature) ?? undefined,
+      };
+    });
     onLoad(mapped);
     onClose();
   };
