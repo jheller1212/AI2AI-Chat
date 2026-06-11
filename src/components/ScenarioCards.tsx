@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { Mic, Briefcase, Brain, Sparkles, KeyRound } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Mic, Briefcase, Brain, Sparkles, KeyRound, Check } from 'lucide-react';
+import { staggerContainer, staggerItem } from '../lib/motionVariants';
 
 export interface Scenario {
   id: string;
@@ -68,43 +70,66 @@ export function ScenarioCards({ onSelect }: ScenarioCardsProps) {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {DEMO_SCENARIOS.map((scenario) => (
-          <button
-            key={scenario.id}
-            onClick={() => {
-              onSelect(scenario);
-              setLoadedId(scenario.id);
-            }}
-            className={`text-left p-4 rounded-xl border transition-all hover:shadow-md ${
-              loadedId === scenario.id
-                ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/20 dark:border-orange-500 shadow-sm'
-                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-orange-300 dark:hover:border-orange-600'
-            }`}
-          >
-            <div className={`mb-2 ${loadedId === scenario.id ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
-              {scenario.icon}
-            </div>
-            <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">
-              {scenario.title}
-            </h4>
-            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-              {scenario.description}
-            </p>
-            {loadedId === scenario.id && (
-              <p className="text-xs text-orange-600 dark:text-orange-400 mt-2 font-medium">
-                Prompts loaded — hit Start Conversation
+      <motion.div
+        className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+        variants={staggerContainer}
+        initial="initial"
+        animate="animate"
+      >
+        {DEMO_SCENARIOS.map((scenario) => {
+          const selected = loadedId === scenario.id;
+          return (
+            <motion.button
+              key={scenario.id}
+              variants={staggerItem}
+              whileHover={{ y: -4 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                onSelect(scenario);
+                setLoadedId(scenario.id);
+              }}
+              className={`relative text-left p-4 rounded-xl border bg-white dark:bg-gray-800 shadow-lab-float transition-shadow hover:shadow-lab-lift ${
+                selected
+                  ? 'border-orange-400 dark:border-orange-500'
+                  : 'border-gray-200 dark:border-gray-700'
+              }`}
+            >
+              {selected && (
+                <motion.div
+                  layoutId="scenarioSelectedRing"
+                  className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-orange-400 dark:ring-orange-500"
+                  transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+                />
+              )}
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-sky-500 text-white shadow-sm">
+                {scenario.icon}
+              </div>
+              <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">
+                {scenario.title}
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                {scenario.description}
               </p>
-            )}
-          </button>
-        ))}
-      </div>
+              {selected && (
+                <p className="mt-2 flex items-center gap-1 text-xs font-medium text-orange-600 dark:text-orange-400">
+                  <Check className="w-3.5 h-3.5" />
+                  Prompts loaded — hit Start
+                </p>
+              )}
+            </motion.button>
+          );
+        })}
+      </motion.div>
 
       {loadedId && (
-        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 flex items-center justify-center gap-2 text-xs text-amber-600 dark:text-amber-400"
+        >
           <KeyRound className="w-3.5 h-3.5 flex-shrink-0" />
           <span>Make sure you've entered an API key for both bots in the panels on each side before starting.</span>
-        </div>
+        </motion.div>
       )}
     </div>
   );
