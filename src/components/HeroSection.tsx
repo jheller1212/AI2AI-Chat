@@ -1,36 +1,56 @@
 import React from 'react';
+import { motion } from 'framer-motion';
+import { FadeUp } from './FadeUp';
 
 interface HeroSectionProps {
   onSignUpClick: () => void;
 }
 
+const HEADLINE_WORDS = ['TWO', 'AI', 'MODELS.', 'ONE', 'CONVERSATION.'];
+
 export function HeroSection({ onSignUpClick }: HeroSectionProps) {
   return (
-    <div className="pt-24 pb-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            Two AI models.{' '}
-            <span className="bg-gradient-to-r from-orange-500 to-sky-500 text-transparent bg-clip-text">
-              One conversation.
-            </span>
-          </h1>
-          <p className="text-xl text-gray-600 mb-6 max-w-2xl mx-auto">
-            Put GPT, Claude, Gemini, or Mistral in conversation with each other.
-            Test negotiation strategies, brainstorm product ideas, simulate customer
-            interactions, or run controlled research experiments — then export everything as CSV.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
-            <button
-              onClick={onSignUpClick}
-              className="px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-orange-500 to-sky-500 rounded-lg hover:from-orange-400 hover:to-sky-400 shadow-lg hover:shadow-xl transition-all"
+    <section className="relative z-[1] flex h-[100svh] flex-col justify-center px-8 pb-8 pt-[70px] max-[900px]:px-[18px] max-[900px]:pt-[90px]">
+      <div className="flex max-w-[720px] flex-col items-start">
+        <h1
+          className="m-0 flex flex-wrap gap-[0.25em] font-bold uppercase text-white"
+          style={{
+            fontSize: 'clamp(26px, 3vw, 42px)',
+            lineHeight: 1.08,
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {HEADLINE_WORDS.map((word, i) => (
+            <motion.span
+              key={`${word}-${i}`}
+              initial={{ opacity: 0, y: 32 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.7, delay: 0.15 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}
             >
-              Create free account
-            </button>
-          </div>
-          <p className="text-sm text-gray-500">Free to use · Bring your own API keys</p>
-        </div>
+              {word === 'TWO' || word === 'ONE' ? (
+                <span className={word === 'TWO' ? 'text-orange-400' : 'text-sky-400'}>{word}</span>
+              ) : (
+                word
+              )}
+            </motion.span>
+          ))}
+        </h1>
+
+        <FadeUp as="p" delay={0.9} className="mt-6 max-w-[260px] text-[14px] leading-[1.65] text-white/85">
+          Put GPT, Claude, Gemini or Mistral in conversation with each other — and export every word.
+        </FadeUp>
+
+        <FadeUp delay={1.05} className="mt-8 flex flex-wrap items-center gap-3">
+          <button
+            onClick={onSignUpClick}
+            className="rounded-lg bg-gradient-to-r from-orange-500 to-sky-500 px-7 py-3.5 text-sm font-semibold text-white shadow-lg transition-all hover:from-orange-400 hover:to-sky-400 hover:shadow-xl"
+          >
+            Create free account
+          </button>
+          <span className="text-xs text-white/70">Free to use · Bring your own API keys</span>
+        </FadeUp>
       </div>
-    </div>
+    </section>
   );
 }
