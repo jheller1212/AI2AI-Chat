@@ -38,9 +38,9 @@ const PROVIDER_MODELS: Record<AIModel, { id: string; name: string; maxTokens: nu
     { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', maxTokens: 16000 },
   ],
   gemini: [
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', maxTokens: 8192 },
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', maxTokens: 8192 },
     { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', maxTokens: 8192 },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', maxTokens: 8192 },
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', maxTokens: 8192 },
   ],
   mistral: [
