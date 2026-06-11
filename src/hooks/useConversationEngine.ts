@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { generateResponse } from '../lib/api/conversation';
 import { supabase } from '../lib/supabase';
+import { trackEvent } from '../lib/analytics';
+import { APIError } from '../lib/api/types';
 import type { AIModel, Message, ChatConfig } from '../types';
 
 interface ConversationEngineOptions {
@@ -115,6 +117,18 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
     return data?.id ?? null;
   };
 
+  // Persist the final stopping trigger on the conversation row and log a
+  // completion event — both fire-and-forget, never blocking the chain.
+  const finalizeConversation = (dbConversationId: string | null, trigger: string, turns: number) => {
+    if (dbConversationId && opts.saveHistory) {
+      supabase.from('conversations').update({ stopping_trigger: trigger }).eq('id', dbConversationId)
+        .then(({ error }) => {
+          if (error) console.warn(`stopping_trigger not saved: ${error.message}`);
+        });
+    }
+    trackEvent(opts.userId, 'conversation_completed', { trigger, turns });
+  };
+
   const generateAIResponse = useCallback(async (
     config: ChatConfig,
     currentMessages: Message[],
@@ -165,6 +179,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
         const matched = keywords.find(k => lower.includes(k.toLowerCase()));
         if (matched) {
           setStoppingTriggers(prev => ({ ...prev, [localConversationId]: `keyword:${matched}` }));
+          finalizeConversation(dbConversationId, `keyword:${matched}`, currentCount + 1);
           onChainComplete(`keyword:${matched}`);
           return;
         }
@@ -195,6 +210,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
         }, computedDelay);
       } else {
         setStoppingTriggers(prev => ({ ...prev, [localConversationId]: 'turn_count' }));
+        finalizeConversation(dbConversationId, 'turn_count', currentCount + 1);
         onChainComplete('turn_count');
       }
     } catch (error) {
@@ -203,6 +219,12 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
         setIsLoading(false);
         return;
       }
+      trackEvent(opts.userId, 'provider_error', {
+        provider: config.model,
+        model: config.modelVersion,
+        status: error instanceof APIError ? error.status : null,
+        timeout: error instanceof Error && error.name === 'AbortError',
+      });
       let msg = error instanceof Error
         ? (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message)
         : 'An unknown error occurred';
@@ -216,7 +238,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
   }, [opts.botName1, opts.botName2, opts.model1, opts.model2, opts.apiKey1, opts.apiKey2,
       opts.orgId1, opts.orgId2, opts.modelVersion1, opts.modelVersion2,
       opts.temperature1, opts.temperature2, opts.maxTokens1, opts.maxTokens2,
-      opts.systemPrompt1, opts.systemPrompt2, opts.buildEffectivePrompt]);
+      opts.systemPrompt1, opts.systemPrompt2, opts.userId, opts.buildEffectivePrompt]);
 
   const startChain = useCallback(async (
     userMsg: string,
@@ -226,6 +248,17 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
     bot1StartsFirst: boolean,
   ) => {
     const dbConversationId = await createConversationRecord(userMsg, localConversationId);
+
+    trackEvent(opts.userId, 'conversation_started', {
+      provider1: opts.model1,
+      provider2: opts.model2,
+      model1: opts.modelVersion1,
+      model2: opts.modelVersion2,
+      bot_mode: opts.botMode,
+      max_interactions: maxInteractionsRef.current,
+      repetition: repetitionIndex,
+      experiment_id: opts.currentExperimentId ?? null,
+    });
 
     if (userMsg && dbConversationId) {
       const userMessage = baseMessages.find(m => m.role === 'user' && !m.hidden && m.content === userMsg);
