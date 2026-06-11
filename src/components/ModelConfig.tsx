@@ -125,7 +125,7 @@ export function ModelConfig({
         <select
           value={model}
           onChange={(e) => handleProviderChange(e.target.value as AIModel)}
-          className="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+          className="w-full p-2 bg-gray-50 dark:bg-[#16294a] border border-gray-200 dark:border-white/10 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
           disabled={disabled}
         >
           {(Object.keys(PROVIDER_LABELS) as AIModel[]).map((m) => (
@@ -151,7 +151,7 @@ export function ModelConfig({
           type="password"
           value={apiKey}
           onChange={(e) => onApiKeyChange(e.target.value)}
-          className="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+          className="w-full p-2 bg-gray-50 dark:bg-[#16294a] border border-gray-200 dark:border-white/10 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
           placeholder={API_KEY_PLACEHOLDERS[model]}
           disabled={disabled}
         />
@@ -169,7 +169,7 @@ export function ModelConfig({
             const v = versions.find(v => v.id === e.target.value);
             if (v) onMaxTokensChange(Math.min(maxTokens, v.maxTokens));
           }}
-          className="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+          className="w-full p-2 bg-gray-50 dark:bg-[#16294a] border border-gray-200 dark:border-white/10 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
           disabled={disabled}
         >
           {versions.map((v) => (
@@ -191,7 +191,7 @@ export function ModelConfig({
           value={temperature}
           onChange={(e) => onTemperatureChange(Number(e.target.value))}
           aria-label={`Temperature: ${temperature}`}
-          className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+          className="w-full h-2 bg-gray-200 dark:bg-[#16294a] rounded-lg appearance-none cursor-pointer accent-indigo-600"
           disabled={disabled}
         />
         <div className="flex justify-between text-xs text-gray-400 dark:text-gray-500">
@@ -214,7 +214,7 @@ export function ModelConfig({
             const v = Number(e.target.value);
             onMaxTokensChange(Math.max(1, Math.min(v, currentMax)));
           }}
-          className="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+          className="w-full p-2 bg-gray-50 dark:bg-[#16294a] border border-gray-200 dark:border-white/10 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
           disabled={disabled}
         />
       </div>
