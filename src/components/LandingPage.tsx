@@ -25,14 +25,14 @@ export function LandingPage({ onAuthClick, onSignUpClick, isAuthenticated, onPri
   return (
     <MotionConfig reducedMotion="user">
       <div className="bg-white">
-        {/* Fixed background video — visible only where content above is transparent.
-            Users with reduced motion get a static brand gradient instead. */}
-        {prefersReducedMotion ? (
-          <div
-            className="fixed left-0 top-0 z-0 h-[100svh] w-full bg-gradient-to-br from-sky-900 via-slate-900 to-orange-900"
-            aria-hidden
-          />
-        ) : (
+        {/* Vivid brand base — always rendered, so the hero stays colourful (not grey)
+            even if the video is slow, blocked, or the user prefers reduced motion. */}
+        <div
+          className="fixed left-0 top-0 z-0 h-[100svh] w-full bg-gradient-to-b from-sky-500 via-sky-700 to-sky-950"
+          aria-hidden
+        />
+        {/* Background video on top of the base (skipped for reduced motion). */}
+        {!prefersReducedMotion && (
           <video
             className="fixed left-0 top-0 z-0 h-[100svh] w-full object-cover"
             src={HERO_VIDEO_SRC}
@@ -44,9 +44,16 @@ export function LandingPage({ onAuthClick, onSignUpClick, isAuthenticated, onPri
             aria-hidden
           />
         )}
-        {/* Brand-tinted scrim for text legibility over the video */}
+        {/* Warm orange brand glow, top-right — an accent that avoids blending the two
+            complementary hues across the centre (which is what muddied to grey). */}
         <div
-          className="fixed inset-0 z-0 bg-gradient-to-br from-sky-950/60 via-black/30 to-orange-950/40"
+          className="fixed left-0 top-0 z-0 h-[100svh] w-full bg-[radial-gradient(115%_115%_at_88%_8%,rgba(249,115,22,0.38),transparent_55%)]"
+          aria-hidden
+        />
+        {/* Legibility scrim — single-hue navy darkening weighted to the text side
+            (left), fading clear so the right of the video stays vivid. */}
+        <div
+          className="fixed inset-0 z-0 bg-gradient-to-r from-sky-950/75 via-sky-950/25 to-transparent"
           aria-hidden
         />
 
