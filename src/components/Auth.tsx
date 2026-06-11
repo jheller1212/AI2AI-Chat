@@ -185,12 +185,12 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
 
   if (awaitingConfirmation) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg text-center space-y-6">
+      <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white dark:bg-gray-900 p-8 rounded-xl shadow-lg text-center space-y-6">
           <CheckCircle className="mx-auto h-14 w-14 text-emerald-500" />
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Check your email</h2>
-            <p className="mt-2 text-gray-600">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Check your email</h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
               We sent a confirmation link to <span className="font-medium">{email}</span>.
               Click the link to activate your account, then come back and sign in.
             </p>
@@ -207,28 +207,28 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="max-w-md w-full space-y-6 bg-white p-8 rounded-xl shadow-lg">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 flex items-center justify-center p-4">
+      <div className="max-w-md w-full space-y-6 bg-white dark:bg-gray-900 p-8 rounded-xl shadow-lg">
         {workshopInfo && (
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center space-y-1">
-            <h3 className="text-lg font-semibold text-indigo-900">{workshopInfo.name}</h3>
+          <div className="bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4 text-center space-y-1">
+            <h3 className="text-lg font-semibold text-indigo-900 dark:text-indigo-200">{workshopInfo.name}</h3>
             {workshopInfo.welcome && (
-              <p className="text-sm text-indigo-700">{workshopInfo.welcome}</p>
+              <p className="text-sm text-indigo-700 dark:text-indigo-300">{workshopInfo.welcome}</p>
             )}
           </div>
         )}
         <div className="text-center">
           <LogIn className="mx-auto h-12 w-12 text-indigo-600" />
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-gray-100">
             {isSignUp ? 'Create your account' : 'Sign in to AI2AI Chat'}
           </h2>
         </div>
 
         {error && (
-          <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded">
+          <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-400 p-4 rounded">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
             </div>
           </div>
         )}
@@ -239,7 +239,7 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
             type="button"
             onClick={() => handleOAuthSignIn('google')}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-2 px-4 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center gap-3 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <GoogleIcon />
             Continue with Google
@@ -248,13 +248,13 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
             type="button"
             onClick={() => handleOAuthSignIn('github')}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 py-2 px-4 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex items-center justify-center gap-3 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <GitHubIcon />
             Continue with GitHub
           </button>
           {isSignUp && (
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
               By continuing with Google or GitHub, you agree to our Terms of Use and Privacy Policy.
             </p>
           )}
@@ -263,10 +263,10 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
         {/* Divider */}
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200" />
+            <div className="w-full border-t border-gray-200 dark:border-gray-700" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-3 text-gray-400">or continue with email</span>
+            <span className="bg-white dark:bg-gray-900 px-3 text-gray-400 dark:text-gray-500">or continue with email</span>
           </div>
         </div>
 
@@ -282,7 +282,7 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none rounded-lg block w-full pl-10 px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="appearance-none rounded-lg block w-full pl-10 px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               placeholder="Email address"
             />
           </div>
@@ -298,7 +298,7 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="appearance-none rounded-lg block w-full pl-10 pr-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+              className="appearance-none rounded-lg block w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               placeholder="Password (min 6 characters)"
             />
             <button
@@ -322,7 +322,7 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
                 required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="appearance-none rounded-lg block w-full pl-10 pr-10 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="appearance-none rounded-lg block w-full pl-10 pr-10 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Confirm password"
               />
               <button
@@ -339,17 +339,17 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
           {isSignUp && (
             <div className="space-y-2">
               {/* Expandable terms box */}
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                 <button
                   type="button"
                   onClick={() => setShowTerms(!showTerms)}
-                  className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
+                  className="w-full flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   <span>View Terms of Use &amp; User Agreement</span>
                   {showTerms ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
                 {showTerms && (
-                  <pre className="px-4 py-3 text-xs text-gray-600 bg-white max-h-48 overflow-y-auto whitespace-pre-wrap font-sans leading-relaxed">
+                  <pre className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900 max-h-48 overflow-y-auto whitespace-pre-wrap font-sans leading-relaxed">
                     {TERMS_TEXT}
                   </pre>
                 )}
@@ -363,7 +363,7 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
                   onChange={(e) => setAgreedToTerms(e.target.checked)}
                   className="mt-0.5 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
                 />
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
                   I have read and agree to the Terms of Use, including that the service is provided without warranty, and I consent to receiving service-related emails.
                 </span>
               </label>
@@ -388,7 +388,7 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
                 type="button"
                 onClick={handleForgotPassword}
                 disabled={loading}
-                className="text-sm text-gray-500 hover:text-indigo-600 disabled:opacity-50"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 disabled:opacity-50"
               >
                 Forgot password?
               </button>
@@ -399,7 +399,7 @@ export function Auth({ onAuthSuccess, initialIsSignUp = false, workshopInfo }: A
         <div className="text-center">
           <button
             onClick={() => switchMode(!isSignUp)}
-            className="text-sm text-indigo-600 hover:text-indigo-500"
+            className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
           >
             {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
           </button>
