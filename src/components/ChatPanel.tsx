@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Send, Download, Camera, RotateCcw, FileText, FileSpreadsheet, ChevronDown, MessageSquare, Table, Square, Link, Copy, FlaskConical, X as XIcon } from 'lucide-react';
+import { Send, Download, Camera, RotateCcw, FileText, FileSpreadsheet, ChevronDown, MessageSquare, Table, BarChart3, Square, Link, Copy, FlaskConical, X as XIcon } from 'lucide-react';
+import { ConversationAnalytics } from './ConversationAnalytics';
 import html2canvas from 'html2canvas';
 import { ConversationDisplay } from './ConversationDisplay';
 import { DataTable } from './DataTable';
@@ -146,7 +147,7 @@ export function ChatPanel({
     };
   }, [showShareMenu]);
 
-  const [activeTab, setActiveTab] = useState<'chat' | 'data'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'data' | 'stats'>('chat');
 
   const handleScreenshot = async () => {
     if (!conversationRef.current) return;
@@ -227,6 +228,17 @@ export function ChatPanel({
                   {messages.filter(m => !m.hidden && m.role !== 'system').length}
                 </span>
               )}
+            </button>
+            <button
+              onClick={() => setActiveTab('stats')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
+                activeTab === 'stats'
+                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm font-medium'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              }`}
+            >
+              <BarChart3 className="w-3 h-3" />
+              Stats
             </button>
           </div>
 
@@ -315,8 +327,16 @@ export function ChatPanel({
               scenarioCards={scenarioCards}
             />
           </div>
-        ) : (
+        ) : activeTab === 'data' ? (
           <DataTable messages={messages} botName1={botName1} botName2={botName2} />
+        ) : (
+          <ConversationAnalytics
+            messages={messages}
+            botName1={botName1}
+            botName2={botName2}
+            textColor1={textColor1}
+            textColor2={textColor2}
+          />
         )}
       </div>
 
