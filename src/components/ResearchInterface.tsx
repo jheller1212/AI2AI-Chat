@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { hashString } from '../lib/hash';
+import { trackEvent } from '../lib/analytics';
 import type { AIModel, Message } from '../types';
 import { Header } from './Header';
 import type { AppView } from './Header';
@@ -201,6 +202,7 @@ export function ResearchInterface({
     a.download = `ai2ai-conversation-${Date.now()}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+    trackEvent(user.id, 'export', { format: 'txt', messages: lines.length });
   };
 
   const handleExportCsv = () => {
@@ -270,6 +272,7 @@ export function ResearchInterface({
     a.download = `ai2ai-conversation-${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    trackEvent(user.id, 'export', { format: 'csv', messages: visibleMessages.length });
   };
 
   const configPayload = useCallback(() => ({
