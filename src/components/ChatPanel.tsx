@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Send, Download, Camera, RotateCcw, FileText, FileSpreadsheet, ChevronDown, MessageSquare, Table, BarChart3, Square, Link, Copy, FlaskConical, X as XIcon } from 'lucide-react';
 import { ConversationAnalytics } from './ConversationAnalytics';
 import html2canvas from 'html2canvas';
@@ -311,33 +312,44 @@ export function ChatPanel({
         </div>
       </div>
 
-      {/* Content area */}
+      {/* Content area — keyed by activeTab so only a real tab switch crossfades
+          (staying on Chat during auto-interact does not remount the conversation). */}
       <div className="flex-1 overflow-y-auto" ref={conversationRef}>
-        {activeTab === 'chat' ? (
-          <div className="p-4">
-            <ConversationDisplay
-              messages={messages}
-              isLoading={isLoading}
-              botName1={botName1}
-              botName2={botName2}
-              bubbleColor1={bubbleColor1}
-              bubbleColor2={bubbleColor2}
-              textColor1={textColor1}
-              textColor2={textColor2}
-              scenarioCards={scenarioCards}
-            />
-          </div>
-        ) : activeTab === 'data' ? (
-          <DataTable messages={messages} botName1={botName1} botName2={botName2} />
-        ) : (
-          <ConversationAnalytics
-            messages={messages}
-            botName1={botName1}
-            botName2={botName2}
-            textColor1={textColor1}
-            textColor2={textColor2}
-          />
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+          >
+            {activeTab === 'chat' ? (
+              <div className="p-4">
+                <ConversationDisplay
+                  messages={messages}
+                  isLoading={isLoading}
+                  botName1={botName1}
+                  botName2={botName2}
+                  bubbleColor1={bubbleColor1}
+                  bubbleColor2={bubbleColor2}
+                  textColor1={textColor1}
+                  textColor2={textColor2}
+                  scenarioCards={scenarioCards}
+                />
+              </div>
+            ) : activeTab === 'data' ? (
+              <DataTable messages={messages} botName1={botName1} botName2={botName2} />
+            ) : (
+              <ConversationAnalytics
+                messages={messages}
+                botName1={botName1}
+                botName2={botName2}
+                textColor1={textColor1}
+                textColor2={textColor2}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* SPEC-02: run token display after conversation ends */}
