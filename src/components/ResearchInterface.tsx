@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { User } from '@supabase/supabase-js';
+import { backdropVariants, centerPanelVariants } from '../lib/motionVariants';
 import { supabase } from '../lib/supabase';
 import { hashString } from '../lib/hash';
 import { trackEvent } from '../lib/analytics';
@@ -370,43 +372,50 @@ export function ResearchInterface({
         onToggleDarkMode={onToggleDarkMode}
       />
 
-      {showUserSettings && (
-        <UserSettings
-          user={user}
-          onClose={() => setShowUserSettings(false)}
-          onOpenHistory={() => { setShowUserSettings(false); setShowHistory(true); }}
-          onDataDeleted={() => { engine.setMessages([]); setShowUserSettings(false); }}
-          onAccountDeleted={() => { onSignOut(); }}
-          onRewatchTour={() => { resetTourDismissed(); incrementTourCount(); setCurrentView('setup'); setShowTour(true); }}
-          isOrganizer={isOrganizer}
-          onOpenWorkshops={() => { setShowUserSettings(false); setShowWorkshopAdmin(true); }}
-          onOpenAdmin={() => { setShowUserSettings(false); setShowAdminDashboard(true); }}
-        />
-      )}
+      <AnimatePresence>
+        {showUserSettings && (
+          <UserSettings
+            user={user}
+            onClose={() => setShowUserSettings(false)}
+            onOpenHistory={() => { setShowUserSettings(false); setShowHistory(true); }}
+            onDataDeleted={() => { engine.setMessages([]); setShowUserSettings(false); }}
+            onAccountDeleted={() => { onSignOut(); }}
+            onRewatchTour={() => { resetTourDismissed(); incrementTourCount(); setCurrentView('setup'); setShowTour(true); }}
+            isOrganizer={isOrganizer}
+            onOpenWorkshops={() => { setShowUserSettings(false); setShowWorkshopAdmin(true); }}
+            onOpenAdmin={() => { setShowUserSettings(false); setShowAdminDashboard(true); }}
+          />
+        )}
+      </AnimatePresence>
 
       {showWorkshopAdmin && <WorkshopAdmin onClose={() => setShowWorkshopAdmin(false)} />}
       {showAdminDashboard && <AdminDashboard onClose={() => setShowAdminDashboard(false)} />}
 
-      {showHistory && (
-        <ConversationHistory
-          userId={user.id}
-          onClose={() => setShowHistory(false)}
-          onLoad={(loaded) => { engine.setMessages(loaded); setCurrentView('chat'); }}
-        />
-      )}
+      <AnimatePresence>
+        {showHistory && (
+          <ConversationHistory
+            userId={user.id}
+            onClose={() => setShowHistory(false)}
+            onLoad={(loaded) => { engine.setMessages(loaded); setCurrentView('chat'); }}
+          />
+        )}
+      </AnimatePresence>
 
-      {showExperiments && (
-        <ExperimentsPanel
-          userId={user.id}
-          onClose={() => setShowExperiments(false)}
-          onLoad={(exp) => { experiments.handleLoadExperiment(exp); setCurrentView('setup'); }}
-        />
-      )}
+      <AnimatePresence>
+        {showExperiments && (
+          <ExperimentsPanel
+            userId={user.id}
+            onClose={() => setShowExperiments(false)}
+            onLoad={(exp) => { experiments.handleLoadExperiment(exp); setCurrentView('setup'); }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Save experiment dialog */}
+      <AnimatePresence>
       {experiments.showSaveExperiment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-md">
+        <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" variants={backdropVariants} initial="initial" animate="animate" exit="exit">
+          <motion.div className="bg-white dark:bg-gray-800 rounded-xl shadow-lab-modal p-6 w-full max-w-md" variants={centerPanelVariants}>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Save Experiment</h2>
             <div className="space-y-3">
               <div>
@@ -461,14 +470,16 @@ export function ResearchInterface({
                 {experiments.savingExp ? 'Saving…' : 'Save experiment'}
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* Leave conversation confirmation */}
+      <AnimatePresence>
       {showLeaveConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-sm">
+        <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" variants={backdropVariants} initial="initial" animate="animate" exit="exit">
+          <motion.div className="bg-white dark:bg-gray-800 rounded-xl shadow-lab-modal p-6 w-full max-w-sm" variants={centerPanelVariants}>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Leave conversation?</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-5">
               {settings.saveHistory
@@ -495,9 +506,10 @@ export function ResearchInterface({
                 Save & leave
               </button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
+      </AnimatePresence>
 
       {/* === VIEW ROUTING === */}
 

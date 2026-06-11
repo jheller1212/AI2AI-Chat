@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import { X, Clock, Bot, ChevronRight, Loader2, MessageSquare, AlertCircle } from 'lucide-react';
 import type { Message } from '../types';
+import { backdropVariants, drawerPanelVariants } from '../lib/motionVariants';
 
 interface DbConversation {
   id: string;
@@ -153,8 +155,20 @@ export function ConversationHistory({ userId, onClose, onLoad }: ConversationHis
   const selected = conversations.find((c) => c.id === selectedId);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex">
-      <div role="dialog" aria-modal="true" aria-labelledby="conv-history-title" className="ml-auto w-full max-w-3xl bg-white dark:bg-gray-900 h-full flex flex-col shadow-2xl">
+    <motion.div
+      className="fixed inset-0 bg-black/50 z-50 flex"
+      variants={backdropVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="conv-history-title"
+        className="ml-auto w-full max-w-3xl bg-white dark:bg-gray-900 h-full flex flex-col shadow-lab-modal"
+        variants={drawerPanelVariants}
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -278,7 +292,7 @@ export function ConversationHistory({ userId, onClose, onLoad }: ConversationHis
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
