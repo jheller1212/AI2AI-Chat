@@ -41,7 +41,7 @@ export function PrivacyPolicy({ onBack }: PrivacyPolicyProps) {
             <ul className="list-disc pl-6 space-y-1">
               <li><strong>Account data:</strong> Email address and display name, provided when you register.</li>
               <li><strong>Conversation data:</strong> When you choose to save a session, we store the conversation messages, model configuration (provider, model name, temperature, token limits), and metadata (timestamps, word counts, response times).</li>
-              <li><strong>Usage data:</strong> We record basic, first-party usage events tied to your account — when a conversation starts and finishes (which providers and models were used, the turn count, and why it stopped), provider API errors, and export actions. This data lives in our own database (no third-party analytics or trackers), is used only to understand how the Service is used and to improve reliability, and is deleted when you delete your account or your data.</li>
+              <li><strong>Usage data:</strong> We record basic, first-party usage events tied to your account — when a conversation starts and finishes (which providers and models were used, the turn count, the experiment identifier when applicable, and why it stopped), provider API errors, and export actions. This data lives in our own database (no third-party analytics or trackers), is used only to understand how the Service is used and to improve reliability, and is deleted when you delete your account or your data.</li>
               <li><strong>Browser preferences:</strong> Theme preference (light/dark) and chat settings are stored in your browser's localStorage and never sent to our servers.</li>
             </ul>
             <p className="mt-2">

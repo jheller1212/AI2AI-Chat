@@ -208,11 +208,13 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
             dbConversationId, localConversationId, currentCount + 1, repetitionIndex, onChainComplete,
           );
         }, computedDelay);
-      } else {
+      } else if (!isStoppedRef.current) {
         setStoppingTriggers(prev => ({ ...prev, [localConversationId]: 'turn_count' }));
         finalizeConversation(dbConversationId, 'turn_count', currentCount + 1);
         onChainComplete('turn_count');
       }
+      // If the user pressed Stop after the response arrived, fall through without
+      // finalizing — handleStop already reset the loading state.
     } catch (error) {
       // Stop button aborts in-flight requests and retry waits — not an error to surface
       if (error instanceof Error && error.name === 'AbortError' && isStoppedRef.current) {
@@ -328,7 +330,8 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
   }, [opts.model1, opts.model2, opts.apiKey1, opts.apiKey2, opts.orgId1, opts.orgId2,
       opts.modelVersion1, opts.modelVersion2, opts.temperature1, opts.temperature2,
       opts.maxTokens1, opts.maxTokens2, opts.systemPrompt1, opts.systemPrompt2,
-      opts.botName1, opts.buildEffectivePrompt, generateAIResponse]);
+      opts.botName1, opts.botMode, opts.userId, opts.currentExperimentId,
+      opts.buildEffectivePrompt, generateAIResponse]);
 
   const handleSendMessage = async (
     userInput: string,
