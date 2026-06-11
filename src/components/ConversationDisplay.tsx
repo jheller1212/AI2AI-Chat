@@ -165,9 +165,7 @@ export function ConversationDisplay({
 
       {isLoading && (
         <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2 }}
+          {...messageEntrance}
           className="flex items-center gap-2 ml-12 text-sm text-gray-400 dark:text-gray-500"
         >
           <div className="flex gap-1">
