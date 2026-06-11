@@ -438,6 +438,11 @@ export function ResearchInterface({
                 />
               </div>
             </div>
+            {experiments.saveExpError && (
+              <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
+                Could not save experiment: {experiments.saveExpError}
+              </p>
+            )}
             <div className="flex justify-end gap-3 mt-5">
               <button
                 onClick={() => experiments.setShowSaveExperiment(false)}

@@ -49,7 +49,22 @@ Deno.serve(async (req) => {
     }
 
     // Delete encrypted API keys
-    await admin.from('api_keys').delete().eq('user_id', user.id);
+    const { error: keysError } = await admin.from('api_keys').delete().eq('user_id', user.id);
+    if (keysError) {
+      return new Response(JSON.stringify({ error: 'Failed to delete API keys' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Delete experiments (conversations referencing them are deleted below)
+    const { error: expError } = await admin.from('experiments').delete().eq('user_id', user.id);
+    if (expError) {
+      return new Response(JSON.stringify({ error: 'Failed to delete experiment data' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     // Delete conversations (messages cascade automatically via FK)
     const { error: convError } = await admin

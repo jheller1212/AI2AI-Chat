@@ -79,9 +79,9 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
     };
   }, []);
 
-  const saveMessageToDb = (conversationId: string, msg: Message, role: string, modelLabel: string) => {
+  const saveMessageToDb = async (conversationId: string, msg: Message, role: string, modelLabel: string) => {
     if (msg.hidden || !opts.saveHistory) return;
-    supabase.from('messages').insert({
+    const { error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       role,
       model: modelLabel,
@@ -89,6 +89,9 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       word_count: msg.wordCount ?? 0,
       time_taken: msg.timeTaken ?? 0,
     });
+    if (error) {
+      setErrors(prev => [...prev, `Message not saved to history: ${error.message}`]);
+    }
   };
 
   const createConversationRecord = async (title: string, id: string): Promise<string | null> => {
@@ -152,7 +155,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       setMessages(prev => [...prev, taggedResponse]);
 
       if (dbConversationId) {
-        saveMessageToDb(dbConversationId, taggedResponse, 'assistant', isFirstAI ? opts.botName1 : opts.botName2);
+        await saveMessageToDb(dbConversationId, taggedResponse, 'assistant', isFirstAI ? opts.botName1 : opts.botName2);
       }
 
       // Check stop keywords
@@ -222,13 +225,16 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
     if (userMsg && dbConversationId) {
       const userMessage = baseMessages.find(m => m.role === 'user' && !m.hidden && m.content === userMsg);
       if (userMessage) {
-        supabase.from('messages').insert({
+        const { error: userMsgError } = await supabase.from('messages').insert({
           conversation_id: dbConversationId,
           role: 'user',
           model: 'User',
           content: userMsg,
           word_count: userMsg.split(/\s+/).filter(Boolean).length,
         });
+        if (userMsgError) {
+          setErrors(prev => [...prev, `Message not saved to history: ${userMsgError.message}`]);
+        }
       }
     }
 
@@ -297,17 +303,12 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
     repetitionCurrentRef.current = 0;
     setErrors([]);
 
-    // Increment run count for the active experiment
+    // Increment run count for the active experiment (atomic, server-side)
     if (opts.currentExperimentId) {
-      supabase.from('experiments')
-        .select('run_count')
-        .eq('id', opts.currentExperimentId)
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            supabase.from('experiments')
-              .update({ run_count: ((data.run_count as number) || 0) + 1, last_run_at: new Date().toISOString() })
-              .eq('id', opts.currentExperimentId);
+      supabase.rpc('increment_experiment_run_count', { exp_id: opts.currentExperimentId })
+        .then(({ error }) => {
+          if (error) {
+            setErrors(prev => [...prev, `Experiment run count not updated: ${error.message}`]);
           }
         });
     }

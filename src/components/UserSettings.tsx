@@ -81,10 +81,11 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAc
   const handleDeleteAllData = async () => {
     setDeleting(true);
     try {
-      const { error } = await supabase
-        .from('conversations')
-        .delete()
-        .eq('user_id', user.id);
+      const [convRes, expRes] = await Promise.all([
+        supabase.from('conversations').delete().eq('user_id', user.id),
+        supabase.from('experiments').delete().eq('user_id', user.id),
+      ]);
+      const error = convRes.error ?? expRes.error;
       if (error) throw error;
       onDataDeleted?.();
     } catch (err) {
@@ -358,7 +359,7 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAc
             {deleteStep === 'idle' ? (
               <div className="flex items-center justify-between gap-4">
                 <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Permanently delete all your conversation history. Your account remains active.
+                  Permanently delete all your conversation history and saved experiments. Your account remains active.
                 </p>
                 <button
                   onClick={() => setDeleteStep('confirm')}

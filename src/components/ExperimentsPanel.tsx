@@ -42,6 +42,7 @@ export function ExperimentsPanel({ userId, onClose, onLoad }: ExperimentsPanelPr
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -67,10 +68,15 @@ export function ExperimentsPanel({ userId, onClose, onLoad }: ExperimentsPanelPr
     e.stopPropagation();
     if (!confirm('Delete this experiment? Conversation runs are not affected.')) return;
     setDeleting(id);
-    await supabase.from('experiments').delete().eq('id', id);
+    setDeleteError(null);
+    const { error } = await supabase.from('experiments').delete().eq('id', id);
+    setDeleting(null);
+    if (error) {
+      setDeleteError(`Failed to delete experiment: ${error.message}`);
+      return;
+    }
     setExperiments(prev => prev.filter(ex => ex.id !== id));
     if (selectedId === id) setSelectedId(null);
-    setDeleting(null);
   };
 
   const selected = experiments.find(ex => ex.id === selectedId);
@@ -131,6 +137,12 @@ export function ExperimentsPanel({ userId, onClose, onLoad }: ExperimentsPanelPr
         <div className="flex flex-1 overflow-hidden">
           {/* List */}
           <div className="w-72 border-r dark:border-gray-700 flex flex-col overflow-y-auto">
+            {deleteError && (
+              <div role="alert" className="flex items-center gap-2 px-4 py-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border-b dark:border-gray-700">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {deleteError}
+              </div>
+            )}
             {loading ? (
               <div className="flex items-center justify-center py-12 text-gray-400">
                 <Loader2 className="w-5 h-5 animate-spin" />
