@@ -161,7 +161,7 @@ export function Dashboard({
                       <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate mb-1">
                         {c.title || '(Untitled)'}
                       </p>
-                      <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-500">
+                      <div className="flex items-center justify-between text-[11px] text-gray-400 dark:text-gray-400">
                         <span>{PROVIDER_LABELS[c.model1_type] || c.model1_type} vs {PROVIDER_LABELS[c.model2_type] || c.model2_type}</span>
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
@@ -215,7 +215,7 @@ export function Dashboard({
                           {exp.condition_label}
                         </span>
                       )}
-                      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+                      <div className="flex items-center gap-2 mt-1.5 text-[11px] text-gray-400 dark:text-gray-400">
                         {exp.run_count > 0 && <span>{exp.run_count} run{exp.run_count !== 1 ? 's' : ''}</span>}
                         <span>{timeAgo(exp.created_at)}</span>
                       </div>
