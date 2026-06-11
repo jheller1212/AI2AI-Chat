@@ -10,9 +10,9 @@ const HEADLINE_WORDS = ['TWO', 'AI', 'MODELS.', 'ONE', 'CONVERSATION.'];
 
 export function HeroSection({ onSignUpClick }: HeroSectionProps) {
   return (
-    <section className="relative z-[1] flex h-screen flex-col justify-center px-8 pb-8 pt-[70px] max-[900px]:px-[18px] max-[900px]:pt-[90px]">
+    <section className="relative z-[1] flex h-[100svh] flex-col justify-center px-8 pb-8 pt-[70px] max-[900px]:px-[18px] max-[900px]:pt-[90px]">
       <div className="flex max-w-[720px] flex-col items-start">
-        <h2
+        <h1
           className="m-0 flex flex-wrap gap-[0.25em] font-bold uppercase text-white"
           style={{
             fontSize: 'clamp(26px, 3vw, 42px)',
@@ -35,7 +35,7 @@ export function HeroSection({ onSignUpClick }: HeroSectionProps) {
               )}
             </motion.span>
           ))}
-        </h2>
+        </h1>
 
         <FadeUp as="p" delay={0.9} className="mt-6 max-w-[260px] text-[14px] leading-[1.65] text-white/85">
           Put GPT, Claude, Gemini or Mistral in conversation with each other — and export every word.
