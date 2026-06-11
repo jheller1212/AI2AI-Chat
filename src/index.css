@@ -27,7 +27,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .aurora-blob,
-  .typing-dot { animation: none !important; }
+  .typing-dot,
+  .shimmer { animation: none !important; }
 }
 
 @layer base {

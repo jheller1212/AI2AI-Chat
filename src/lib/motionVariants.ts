@@ -23,6 +23,13 @@ export const drawerPanelVariants: Variants = {
   exit: { x: '100%', transition: { duration: 0.24, ease: 'easeIn' } },
 };
 
+/** App view transition (dashboard ↔ setup ↔ chat). Small offset — functional tool. */
+export const pageVariants: Variants = {
+  initial: { opacity: 0, y: 12 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.22, ease: EASE } },
+  exit: { opacity: 0, y: -8, transition: { duration: 0.16, ease: 'easeIn' } },
+};
+
 /** Staggered list container + item, for card grids. */
 export const staggerContainer: Variants = {
   animate: { transition: { staggerChildren: 0.05, delayChildren: 0.04 } },

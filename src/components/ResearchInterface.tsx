@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
 import type { User } from '@supabase/supabase-js';
-import { backdropVariants, centerPanelVariants } from '../lib/motionVariants';
+import { backdropVariants, centerPanelVariants, pageVariants } from '../lib/motionVariants';
 import { supabase } from '../lib/supabase';
 import { hashString } from '../lib/hash';
 import { trackEvent } from '../lib/analytics';
@@ -356,6 +356,7 @@ export function ResearchInterface({
   const visibleMsgCount = engine.messages.filter(m => !m.hidden && m.role !== 'system').length;
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="h-screen bg-gray-100 dark:bg-gray-950 flex flex-col overflow-hidden">
       {showTour && <OnboardingTour onComplete={() => setShowTour(false)} />}
       {workshopData && <WorkshopBanner name={workshopData.name} welcome={workshopData.welcome} />}
@@ -513,7 +514,9 @@ export function ResearchInterface({
 
       {/* === VIEW ROUTING === */}
 
+      <AnimatePresence mode="wait">
       {currentView === 'dashboard' && (
+        <motion.div key="view-dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex-1 min-h-0 flex flex-col">
         <Dashboard
           userId={user.id}
           onNewConversation={() => { engine.handleResetChat(); setCurrentView('setup'); }}
@@ -522,9 +525,11 @@ export function ResearchInterface({
           onOpenHistory={() => setShowHistory(true)}
           onOpenExperiments={() => setShowExperiments(true)}
         />
+        </motion.div>
       )}
 
       {currentView === 'setup' && (
+        <motion.div key="view-setup" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex-1 min-h-0 flex flex-col">
         <SetupPage
           botName1={bot.botName1} onBotName1Change={bot.setBotName1}
           model1={bot.model1} onModel1Change={bot.setModel1}
@@ -562,10 +567,11 @@ export function ResearchInterface({
           isLoading={engine.isLoading}
           userId={user.id}
         />
+        </motion.div>
       )}
 
       {currentView === 'chat' && (
-        <main className="flex-1 min-h-0 w-full px-2 sm:px-4 lg:px-6 py-3 overflow-hidden">
+        <motion.main key="view-chat" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="flex-1 min-h-0 w-full px-2 sm:px-4 lg:px-6 py-3 overflow-hidden">
           <div className="flex-1 flex flex-col gap-2 min-w-0 min-h-0 overflow-hidden h-full">
             <ErrorDisplay errors={engine.errors} onClear={() => engine.setErrors([])} />
             <ChatPanel
@@ -618,8 +624,10 @@ export function ResearchInterface({
               scenarioCards={engine.messages.length === 0 ? <ScenarioCards onSelect={handleLoadScenario} /> : undefined}
             />
           </div>
-        </main>
+        </motion.main>
       )}
+      </AnimatePresence>
     </div>
+    </MotionConfig>
   );
 }
