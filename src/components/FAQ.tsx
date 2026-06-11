@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { FadeUp } from './FadeUp';
 
 const faqs = [
   {
@@ -16,7 +17,7 @@ const faqs = [
   },
   {
     q: "Which models are supported?",
-    a: "GPT-4o and variants (OpenAI), Claude Opus 4.6, Sonnet 4.6, and Haiku 4.5 (Anthropic), Gemini 1.5 Pro and Flash (Google), and Mistral Large / Medium / Small.",
+    a: "GPT-4o and variants (OpenAI), Claude Sonnet 4.6, Opus 4.6, and Haiku 4.5 (Anthropic), Gemini 2.5 Flash and Pro (Google), and Mistral Large / Medium / Small.",
   },
   {
     q: "Are my API keys safe?",
@@ -32,7 +33,7 @@ const faqs = [
   },
   {
     q: "Can I export the data?",
-    a: "Yes. Download conversations as CSV (message content, word counts, response times, model settings, timestamps) or as plain text. Screenshot export is also available.",
+    a: "Yes. Download conversations as CSV (message content, word counts, response times, model settings, timestamps) or as plain text. You also get a built-in statistical comparison of the two AIs, and screenshot export is available.",
   },
   {
     q: "What is auto-interact mode?",
@@ -50,6 +51,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
     <div className="border-b border-gray-200 last:border-0">
       <button
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="w-full flex items-center justify-between py-4 text-left text-gray-800 font-medium hover:text-orange-600 transition-colors gap-4"
       >
         <span>{q}</span>
@@ -57,24 +59,31 @@ function FAQItem({ q, a }: { q: string; a: string }) {
           className={`w-4 h-4 flex-shrink-0 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
         />
       </button>
-      {open && (
-        <p className="pb-4 text-gray-600 text-sm leading-relaxed">{a}</p>
-      )}
+      <div
+        className={`grid transition-all duration-200 ease-out ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+      >
+        <div className="overflow-hidden">
+          <p className="pb-4 text-gray-600 text-sm leading-relaxed">{a}</p>
+        </div>
+      </div>
     </div>
   );
 }
 
 export function FAQ() {
   return (
-    <div className="py-10 bg-white">
+    <section className="py-20 sm:py-24 bg-white">
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">FAQ</h2>
-        <div className="bg-white rounded-xl border border-gray-200 px-6">
+        <FadeUp className="text-center mb-10">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-600 mb-2">Questions</p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Frequently asked</h2>
+        </FadeUp>
+        <FadeUp delay={0.1} className="bg-white rounded-2xl border border-gray-200 shadow-sm px-6">
           {faqs.map((item) => (
             <FAQItem key={item.q} q={item.q} a={item.a} />
           ))}
-        </div>
+        </FadeUp>
       </div>
-    </div>
+    </section>
   );
 }
