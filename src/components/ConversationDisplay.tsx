@@ -1,6 +1,16 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Message } from '../types';
 import { Bot, User } from 'lucide-react';
+
+// Subtle entrance for each message. No AnimatePresence — messages are never
+// removed mid-session, so already-mounted bubbles keep their settled state and
+// only newly-appended messages animate in.
+const messageEntrance = {
+  initial: { opacity: 0, y: 6 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.2, ease: [0.22, 1, 0.36, 1] as const },
+};
 
 interface ConversationDisplayProps {
   messages: Message[];
@@ -99,7 +109,8 @@ export function ConversationDisplay({
           return (
             <React.Fragment key={message.id}>
               {repDivider}
-              <div
+              <motion.div
+                {...messageEntrance}
                 className="flex flex-col gap-1 px-3 py-2 rounded-xl shadow-sm bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 mr-12"
               >
                 <div className="flex items-center justify-between">
@@ -112,7 +123,7 @@ export function ConversationDisplay({
                   </span>
                 </div>
                 <p className="text-gray-800 dark:text-gray-200 text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
-              </div>
+              </motion.div>
             </React.Fragment>
           );
         }
@@ -123,7 +134,8 @@ export function ConversationDisplay({
         return (
           <React.Fragment key={message.id}>
             {repDivider}
-          <div
+          <motion.div
+            {...messageEntrance}
             className={`flex flex-col gap-1 px-3 py-2 rounded-xl shadow-sm ${isBot1 ? 'ml-12' : 'mr-12'}`}
             style={{ backgroundColor: bgColor }}
           >
@@ -146,20 +158,23 @@ export function ConversationDisplay({
               </span>
             </div>
             <p className="text-sm whitespace-pre-wrap leading-relaxed" style={{ color: fgColor }}>{message.content}</p>
-          </div>
+          </motion.div>
           </React.Fragment>
         );
       })}
 
       {isLoading && (
-        <div className="flex items-center gap-2 ml-12 text-sm text-gray-400 dark:text-gray-500">
+        <motion.div
+          {...messageEntrance}
+          className="flex items-center gap-2 ml-12 text-sm text-gray-400 dark:text-gray-500"
+        >
           <div className="flex gap-1">
-            <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-            <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-            <span className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            <span className="typing-dot w-2 h-2 bg-sky-400 rounded-full" style={{ animation: 'typing-bounce 1.2s ease-in-out infinite', animationDelay: '0ms' }} />
+            <span className="typing-dot w-2 h-2 bg-sky-400 rounded-full" style={{ animation: 'typing-bounce 1.2s ease-in-out infinite', animationDelay: '160ms' }} />
+            <span className="typing-dot w-2 h-2 bg-sky-400 rounded-full" style={{ animation: 'typing-bounce 1.2s ease-in-out infinite', animationDelay: '320ms' }} />
           </div>
           Generating…
-        </div>
+        </motion.div>
       )}
 
       <div ref={messagesEndRef} />
