@@ -236,6 +236,14 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
           setErrors(prev => [...prev, `Message not saved to history: ${userMsgError.message}`]);
         }
       }
+    } else if (dbConversationId) {
+      // Asymmetric scripted opener: the chain starts from a pre-written Bot 1
+      // message — save it too, otherwise the conversation is incomplete in
+      // history and bot attribution can't be recovered on load.
+      const opener = baseMessages[baseMessages.length - 1];
+      if (opener?.role === 'assistant' && opener.botIndex === 1) {
+        await saveMessageToDb(dbConversationId, opener, 'assistant', opts.botName1);
+      }
     }
 
     const config1: ChatConfig = {
@@ -282,7 +290,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
   }, [opts.model1, opts.model2, opts.apiKey1, opts.apiKey2, opts.orgId1, opts.orgId2,
       opts.modelVersion1, opts.modelVersion2, opts.temperature1, opts.temperature2,
       opts.maxTokens1, opts.maxTokens2, opts.systemPrompt1, opts.systemPrompt2,
-      opts.buildEffectivePrompt, generateAIResponse]);
+      opts.botName1, opts.buildEffectivePrompt, generateAIResponse]);
 
   const handleSendMessage = async (
     userInput: string,
