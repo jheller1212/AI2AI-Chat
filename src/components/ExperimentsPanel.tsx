@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
+import { backdropVariants, drawerPanelVariants } from '../lib/motionVariants';
 import {
   X, FlaskConical, Loader2, AlertCircle, ChevronRight,
   Play, Trash2, Bot, Settings2,
@@ -110,12 +112,19 @@ export function ExperimentsPanel({ userId, onClose, onLoad }: ExperimentsPanelPr
   );
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex">
-      <div
+    <motion.div
+      className="fixed inset-0 bg-black/50 z-50 flex"
+      variants={backdropVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <motion.div
         role="dialog"
         aria-modal="true"
         aria-labelledby="exp-panel-title"
-        className="ml-auto w-full max-w-3xl bg-white dark:bg-gray-900 h-full flex flex-col shadow-2xl"
+        className="ml-auto w-full max-w-3xl bg-white dark:bg-gray-900 h-full flex flex-col shadow-lab-modal"
+        variants={drawerPanelVariants}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
@@ -279,7 +288,7 @@ export function ExperimentsPanel({ userId, onClose, onLoad }: ExperimentsPanelPr
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

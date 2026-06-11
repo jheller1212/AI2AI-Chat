@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { backdropVariants, centerPanelVariants } from '../lib/motionVariants';
 import { X, Settings, User as UserIcon, Mail, Lock, Save, Clock, Trash2, KeyRound, PlayCircle, GraduationCap, Ticket, BarChart3 } from 'lucide-react';
 import { loadVault, saveVault, clearVault, type ProviderVault } from '../lib/apiKeyVault';
 
@@ -117,8 +119,20 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAc
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="user-settings-title" className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <motion.div
+      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      variants={backdropVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+    >
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="user-settings-title"
+        className="bg-white dark:bg-gray-800 rounded-2xl shadow-lab-modal w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        variants={centerPanelVariants}
+      >
         <div className="flex items-center justify-between px-6 py-4 border-b dark:border-gray-700">
           <div className="flex items-center gap-2">
             <Settings className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
@@ -464,7 +478,7 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAc
             {loading ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
