@@ -14,6 +14,7 @@ interface UseExperimentsOptions {
   setBotMode: (v: 'symmetric' | 'asymmetric') => void;
   setOpeningMessage: (v: string) => void;
   setStopKeywords: (v: string) => void;
+  setUserInput: (v: string) => void;
   // All bot config values for saving
   getBotConfig: () => Record<string, unknown>;
   getSettingsConfig: () => Record<string, unknown>;
@@ -60,6 +61,10 @@ export function useExperiments(opts: UseExperimentsOptions) {
     if (s('bm')) opts.setBotMode(s('bm') as 'symmetric' | 'asymmetric');
     if (s('om') !== undefined) opts.setOpeningMessage(s('om')!);
     if (s('sk') !== undefined) opts.setStopKeywords(s('sk')!);
+    // Scenario prompt: restore the saved value, or reset to empty for older
+    // experiments that predate scenario-prompt capture — so a previously
+    // loaded scenario never bleeds into a different experiment's setup.
+    opts.setUserInput(s('ui') ?? '');
 
     setCurrentExperimentId(experiment.id);
     setCurrentExperimentName(experiment.name);

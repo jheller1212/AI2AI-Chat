@@ -81,6 +81,7 @@ export function ResearchInterface({
     setBotMode: settings.setBotMode,
     setOpeningMessage: settings.setOpeningMessage,
     setStopKeywords: settings.setStopKeywords,
+    setUserInput: settings.setUserInput,
     getBotConfig: () => ({
       m1: bot.model1, mv1: bot.modelVersion1, t1: bot.temperature1, mt1: bot.maxTokens1,
       sp1: bot.systemPrompt1, n1: bot.botName1,
@@ -91,7 +92,7 @@ export function ResearchInterface({
     getSettingsConfig: () => ({
       mi: settings.maxInteractions, rd: settings.responseDelay, dv: settings.delayVariance,
       rc: settings.repetitionCount, bm: settings.botMode, om: settings.openingMessage,
-      sk: settings.stopKeywords,
+      sk: settings.stopKeywords, ui: settings.userInput,
     }),
   });
 
