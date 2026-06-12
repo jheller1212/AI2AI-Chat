@@ -266,6 +266,14 @@ export function ExperimentsPanel({ userId, onClose, onLoad }: ExperimentsPanelPr
                     </div>
                   </div>
 
+                  {/* Scenario prompt preview */}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Scenario Prompt</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 rounded p-2 border border-gray-200 dark:border-gray-700">
+                      {String(selected.config.ui ?? '').trim() || <em className="text-gray-400">No scenario prompt</em>}
+                    </p>
+                  </div>
+
                   {/* System prompts preview */}
                   <div>
                     <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">System Prompts</p>
