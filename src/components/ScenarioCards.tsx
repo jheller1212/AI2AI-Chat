@@ -90,17 +90,10 @@ export function ScenarioCards({ onSelect }: ScenarioCardsProps) {
               }}
               className={`relative text-left p-4 rounded-xl border bg-white dark:bg-white/[0.06] dark:backdrop-blur-md shadow-lab-float transition-shadow hover:shadow-lab-lift ${
                 selected
-                  ? 'border-orange-400 dark:border-orange-500'
+                  ? 'border-orange-400 dark:border-orange-500 ring-2 ring-orange-400 dark:ring-orange-500'
                   : 'border-gray-200 dark:border-white/10'
               }`}
             >
-              {selected && (
-                <motion.div
-                  layoutId="scenarioSelectedRing"
-                  className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-orange-400 dark:ring-orange-500"
-                  transition={{ type: 'spring', stiffness: 500, damping: 34 }}
-                />
-              )}
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-sky-500 text-white shadow-sm">
                 {scenario.icon}
               </div>
