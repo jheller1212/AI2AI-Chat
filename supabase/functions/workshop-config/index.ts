@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const SUPER_ADMIN = Deno.env.get('SUPER_ADMIN_EMAIL') || '';
+const SUPER_ADMIN = (Deno.env.get('SUPER_ADMIN_EMAIL') || '').toLowerCase().trim();
 
 const ALLOWED_ORIGINS = [
   'https://ai2aichat.com',
@@ -63,7 +63,8 @@ function jsonResponse(body: unknown, status: number, headers: Record<string, str
 
 async function isOrganizer(admin: ReturnType<typeof createClient>, email: string): Promise<boolean> {
   const emailLower = (email || '').toLowerCase().trim();
-  if (emailLower === SUPER_ADMIN) return true;
+  if (!emailLower) return false;
+  if (SUPER_ADMIN && emailLower === SUPER_ADMIN) return true;
   const { data } = await admin
     .from('workshop_organizers')
     .select('id')
@@ -266,7 +267,7 @@ Deno.serve(async (req) => {
 
     // === ADD-ORGANIZER: super admin only ===
     if (action === 'add-organizer') {
-      if (user.email !== SUPER_ADMIN) {
+      if (!SUPER_ADMIN || !user.email || user.email.toLowerCase().trim() !== SUPER_ADMIN) {
         return jsonResponse({ error: 'Only the super admin can add organizers' }, 403, corsHeaders);
       }
 
