@@ -330,6 +330,41 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Missing invite code' }, 400, corsHeaders);
       }
 
+      // --- Rate limiting: max 5 attempts per IP per hour ---
+      const clientIp =
+        req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
+        req.headers.get('x-real-ip') ||
+        'unknown';
+
+      const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      const { count: recentAttempts } = await admin
+        .from('invite_rate_limits')
+        .select('id', { count: 'exact', head: true })
+        .eq('ip', clientIp)
+        .gte('attempted_at', windowStart);
+
+      const RATE_LIMIT = 5;
+      if ((recentAttempts ?? 0) >= RATE_LIMIT) {
+        return jsonResponse(
+          { error: 'Too many invite code attempts. Please wait before trying again.' },
+          429,
+          corsHeaders,
+        );
+      }
+
+      // Record this attempt before validating the code (fail-closed)
+      await admin
+        .from('invite_rate_limits')
+        .insert({ ip: clientIp, code: code.toUpperCase().trim() });
+
+      // Opportunistic cleanup of old entries (best-effort, non-blocking)
+      admin
+        .rpc('purge_old_invite_rate_limits')
+        .then(() => {/* ignore */})
+        .catch(() => {/* ignore */});
+      // --- End rate limiting ---
+
       const { data: invite } = await admin
         .from('organizer_invite_codes')
         .select('id, used_by')
