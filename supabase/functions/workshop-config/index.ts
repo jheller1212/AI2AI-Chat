@@ -330,6 +330,39 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Missing invite code' }, 400, corsHeaders);
       }
 
+      // --- Rate limiting: max 5 attempts per authenticated user per hour ---
+      // Keyed on user.id (server-verified from the JWT), NOT on client-supplied
+      // headers like x-forwarded-for, which an attacker can rotate to bypass the
+      // limit and which would also lock out everyone behind a shared NAT.
+      const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      const { count: recentAttempts } = await admin
+        .from('invite_rate_limits')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('attempted_at', windowStart);
+
+      const RATE_LIMIT = 5;
+      if ((recentAttempts ?? 0) >= RATE_LIMIT) {
+        return jsonResponse(
+          { error: 'Too many invite code attempts. Please wait before trying again.' },
+          429,
+          corsHeaders,
+        );
+      }
+
+      // Record this attempt before validating the code (fail-closed)
+      await admin
+        .from('invite_rate_limits')
+        .insert({ user_id: user.id, code: code.toUpperCase().trim() });
+
+      // Opportunistic cleanup of old entries (best-effort, non-blocking)
+      admin
+        .rpc('purge_old_invite_rate_limits')
+        .then(() => {/* ignore */})
+        .catch(() => {/* ignore */});
+      // --- End rate limiting ---
+
       const { data: invite } = await admin
         .from('organizer_invite_codes')
         .select('id, used_by')
