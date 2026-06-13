@@ -330,18 +330,16 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Missing invite code' }, 400, corsHeaders);
       }
 
-      // --- Rate limiting: max 5 attempts per IP per hour ---
-      const clientIp =
-        req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-        req.headers.get('x-real-ip') ||
-        'unknown';
-
+      // --- Rate limiting: max 5 attempts per authenticated user per hour ---
+      // Keyed on user.id (server-verified from the JWT), NOT on client-supplied
+      // headers like x-forwarded-for, which an attacker can rotate to bypass the
+      // limit and which would also lock out everyone behind a shared NAT.
       const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
       const { count: recentAttempts } = await admin
         .from('invite_rate_limits')
         .select('id', { count: 'exact', head: true })
-        .eq('ip', clientIp)
+        .eq('user_id', user.id)
         .gte('attempted_at', windowStart);
 
       const RATE_LIMIT = 5;
@@ -356,7 +354,7 @@ Deno.serve(async (req) => {
       // Record this attempt before validating the code (fail-closed)
       await admin
         .from('invite_rate_limits')
-        .insert({ ip: clientIp, code: code.toUpperCase().trim() });
+        .insert({ user_id: user.id, code: code.toUpperCase().trim() });
 
       // Opportunistic cleanup of old entries (best-effort, non-blocking)
       admin

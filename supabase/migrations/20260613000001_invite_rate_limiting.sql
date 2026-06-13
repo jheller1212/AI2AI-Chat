@@ -1,17 +1,20 @@
 -- Rate limiting for invite code redemption.
--- Tracks failed attempts per IP address within a rolling window.
+-- Tracks attempts per authenticated user within a rolling window.
+-- Keyed on user_id (server-verified from the JWT) rather than IP, because
+-- client-supplied headers (x-forwarded-for) are spoofable and a shared NAT
+-- would otherwise lock out a whole classroom.
 -- Applied via Supabase dashboard (not CLI).
 
 create table if not exists public.invite_rate_limits (
-  id          uuid primary key default gen_random_uuid(),
-  ip          text not null,
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null references auth.users(id) on delete cascade,
   attempted_at timestamptz not null default now(),
-  code        text not null
+  code         text not null
 );
 
--- Index for fast lookup by IP within a time window
-create index if not exists invite_rate_limits_ip_time_idx
-  on public.invite_rate_limits (ip, attempted_at);
+-- Index for fast lookup by user within a time window
+create index if not exists invite_rate_limits_user_time_idx
+  on public.invite_rate_limits (user_id, attempted_at);
 
 -- RLS: service role only (no user-facing policies)
 alter table public.invite_rate_limits enable row level security;
