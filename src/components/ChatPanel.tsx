@@ -187,7 +187,7 @@ export function ChatPanel({
   const hasMessages = onExportTxt != null;
 
   return (
-    <div className="flex-1 min-h-0 bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden flex flex-col">
+    <div className="flex-1 min-h-0 bg-white dark:bg-[#0f1e38] rounded-lg shadow-sm overflow-hidden flex flex-col">
 
       {/* SPEC-02: participant / condition banner */}
       {(sessionId || conditionLabel) && (
@@ -199,15 +199,15 @@ export function ChatPanel({
       )}
 
       {/* Header bar */}
-      <div data-tour="chat-tabs" className="flex items-center justify-between px-4 py-3 border-b dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
+      <div data-tour="chat-tabs" className="flex items-center justify-between px-4 py-3 border-b dark:border-white/10 bg-gray-50 dark:bg-[#0c1830]">
         <div className="flex items-center gap-3">
           {/* Tab switcher */}
-          <div className="flex gap-0.5 border border-gray-200 dark:border-gray-600 rounded-lg p-0.5 bg-gray-100 dark:bg-gray-800">
+          <div className="flex gap-0.5 border border-gray-200 dark:border-white/10 rounded-lg p-0.5 bg-gray-100 dark:bg-[#0f1e38]">
             <button
               onClick={() => setActiveTab('chat')}
               className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
                 activeTab === 'chat'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm font-medium'
+                  ? 'bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100 shadow-sm font-medium'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
             >
@@ -218,7 +218,7 @@ export function ChatPanel({
               onClick={() => setActiveTab('data')}
               className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
                 activeTab === 'data'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm font-medium'
+                  ? 'bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100 shadow-sm font-medium'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
             >
@@ -234,7 +234,7 @@ export function ChatPanel({
               onClick={() => setActiveTab('stats')}
               className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
                 activeTab === 'stats'
-                  ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm font-medium'
+                  ? 'bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100 shadow-sm font-medium'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
             >
@@ -262,7 +262,7 @@ export function ChatPanel({
           {onResetChat && (
             <button
               onClick={onResetChat}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 border border-gray-300 dark:border-gray-600 hover:border-red-300 dark:hover:border-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 border border-gray-300 dark:border-white/10 hover:border-red-300 dark:hover:border-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               title="Clear chat display (data kept in history)"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -275,24 +275,24 @@ export function ChatPanel({
             <div className="relative" ref={exportMenuRef}>
               <button
                 onClick={() => setShowExportMenu(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 border border-gray-300 dark:border-white/10 rounded-lg hover:bg-gray-100 dark:hover:bg-[#16294a] transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
                 Export
                 <ChevronDown className="w-3 h-3" />
               </button>
               {showExportMenu && (
-                <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 z-10 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1 w-44 bg-white dark:bg-[#0f1e38] rounded-lg shadow-lg border border-gray-200 dark:border-white/10 z-10 overflow-hidden">
                   <button
                     onClick={() => { onExportTxt?.(); setShowExportMenu(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#16294a]"
                   >
                     <FileText className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                     Download .txt
                   </button>
                   <button
                     onClick={() => { onExportCsv?.(); setShowExportMenu(false); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#16294a]"
                   >
                     <FileSpreadsheet className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                     Download .csv
@@ -300,7 +300,7 @@ export function ChatPanel({
                   <button
                     onClick={handleScreenshot}
                     disabled={screenshotting}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#16294a] disabled:opacity-50"
                   >
                     <Camera className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500" />
                     {screenshotting ? 'Capturing…' : 'Screenshot (.png)'}
@@ -354,7 +354,7 @@ export function ChatPanel({
 
       {/* SPEC-02: run token display after conversation ends */}
       {runTokens && runTokens.length > 0 && (
-        <div className="px-4 py-2 border-t dark:border-gray-700 bg-indigo-50 dark:bg-indigo-900/20">
+        <div className="px-4 py-2 border-t dark:border-white/10 bg-indigo-50 dark:bg-indigo-900/20">
           <p className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium mb-1">
             Run token{runTokens.length > 1 ? 's' : ''} — copy into your survey for record linkage
           </p>
@@ -364,7 +364,7 @@ export function ChatPanel({
                 {runTokens.length > 1 && (
                   <span className="text-[10px] text-indigo-400 w-8">Run {i + 1}</span>
                 )}
-                <code className="flex-1 text-[11px] font-mono bg-white dark:bg-gray-800 border border-indigo-200 dark:border-indigo-700 rounded px-2 py-0.5 text-indigo-700 dark:text-indigo-300 truncate">
+                <code className="flex-1 text-[11px] font-mono bg-white dark:bg-[#0f1e38] border border-indigo-200 dark:border-indigo-700 rounded px-2 py-0.5 text-indigo-700 dark:text-indigo-300 truncate">
                   {token}
                 </code>
                 <button
@@ -384,7 +384,7 @@ export function ChatPanel({
       )}
 
       {/* Input area */}
-      <div className="p-3 border-t dark:border-gray-700 space-y-2">
+      <div className="p-3 border-t dark:border-white/10 space-y-2">
 
         {/* Scenario prompt — hidden in asymmetric mode when an opening message is configured */}
         {!(botMode === 'asymmetric' && openingMessage.trim()) && (
@@ -411,7 +411,7 @@ export function ChatPanel({
                   ? 'Scenario prompt (optional — sets the scene for both bots before they start)'
                   : 'Scenario prompt (optional — sets the scene for the conversation, e.g. a question or topic)'
               }
-              className="flex-1 p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-y min-h-[100px]"
+              className="flex-1 p-2.5 border border-gray-300 dark:border-white/10 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm disabled:opacity-50 disabled:cursor-not-allowed bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-y min-h-[100px]"
             />
             {isLoading && onStop ? (
               <button
@@ -478,7 +478,7 @@ export function ChatPanel({
               type="checkbox"
               checked={autoInteract}
               onChange={(e) => onAutoInteractChange(e.target.checked)}
-              className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+              className="rounded border-gray-300 dark:border-white/10 text-indigo-600 focus:ring-indigo-500"
             />
             Auto-interact
             <InfoTooltip text="When enabled, the two AIs automatically take turns responding to each other up to the messages-per-bot limit. Disable to trigger each response manually." />
@@ -495,7 +495,7 @@ export function ChatPanel({
                   step="1"
                   value={Math.ceil(maxInteractions / 2)}
                   onChange={(e) => onMaxInteractionsChange(Math.max(2, Number(e.target.value)) * 2)}
-                  className="w-14 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  className="w-14 px-2 py-1 border border-gray-300 dark:border-white/10 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100"
                 />
                 <InfoTooltip text="How many times each bot responds per run (min 2). Set to 5 → Bot A speaks 5 times, Bot B speaks 5 times (10 total AI responses)." />
               </label>
@@ -520,7 +520,7 @@ export function ChatPanel({
                   type="checkbox"
                   checked={delayVariance}
                   onChange={(e) => onDelayVarianceChange(e.target.checked)}
-                  className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+                  className="rounded border-gray-300 dark:border-white/10 text-indigo-600 focus:ring-indigo-500"
                 />
                 <span className="text-gray-500 dark:text-gray-400">Length-based delay</span>
                 <InfoTooltip text="Adds extra delay proportional to the length of each message (approx. 0.05 s per word), simulating the time a human would take to read it." />
@@ -535,7 +535,7 @@ export function ChatPanel({
                   step="1"
                   value={repetitionCount}
                   onChange={(e) => onRepetitionCountChange(Math.max(1, Number(e.target.value)))}
-                  className="w-14 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  className="w-14 px-2 py-1 border border-gray-300 dark:border-white/10 rounded text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100"
                 />
                 <span className="text-gray-500 dark:text-gray-400">conversations</span>
                 <InfoTooltip text="Run the same conversation from scratch this many times. Useful for generating multiple varied responses to the same opening prompt." />
@@ -548,7 +548,7 @@ export function ChatPanel({
               type="checkbox"
               checked={chatMode}
               onChange={(e) => onChatModeChange(e.target.checked)}
-              className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+              className="rounded border-gray-300 dark:border-white/10 text-indigo-600 focus:ring-indigo-500"
             />
             <span className="text-gray-500 dark:text-gray-400">Chat mode</span>
             <InfoTooltip text="When enabled, appends an instruction to both bots asking them to reply in short, conversational sentences (1–2 sentences max). Your own prompts are always preserved." />
@@ -559,7 +559,7 @@ export function ChatPanel({
               type="checkbox"
               checked={saveHistory}
               onChange={(e) => onSaveHistoryChange(e.target.checked)}
-              className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+              className="rounded border-gray-300 dark:border-white/10 text-indigo-600 focus:ring-indigo-500"
             />
             <span className="text-gray-500 dark:text-gray-400">Save to history</span>
             <InfoTooltip text="When disabled, this conversation is not written to the database. Nothing is stored server-side — useful for sensitive research data or private experiments." align="right" />
@@ -567,27 +567,27 @@ export function ChatPanel({
         </div>
 
         {/* Research controls row */}
-        <div className="flex flex-wrap items-start gap-x-5 gap-y-2.5 text-sm pt-2 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex flex-wrap items-start gap-x-5 gap-y-2.5 text-sm pt-2 border-t border-gray-100 dark:border-white/10">
           {/* SPEC-03: bot role mode toggle */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500 dark:text-gray-400">Bot roles</span>
-            <div className="flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden text-[11px]">
+            <div className="flex rounded-md border border-gray-300 dark:border-white/10 overflow-hidden text-[11px]">
               <button
                 onClick={() => onBotModeChange('symmetric')}
                 className={`px-2.5 py-1 transition-colors ${
                   botMode === 'symmetric'
                     ? 'bg-indigo-600 text-white'
-                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    : 'bg-white dark:bg-[#16294a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#16294a]'
                 }`}
               >
                 Symmetric
               </button>
               <button
                 onClick={() => onBotModeChange('asymmetric')}
-                className={`px-2.5 py-1 transition-colors border-l border-gray-300 dark:border-gray-600 ${
+                className={`px-2.5 py-1 transition-colors border-l border-gray-300 dark:border-white/10 ${
                   botMode === 'asymmetric'
                     ? 'bg-indigo-600 text-white'
-                    : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                    : 'bg-white dark:bg-[#16294a] text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#16294a]'
                 }`}
               >
                 Asymmetric
@@ -605,7 +605,7 @@ export function ChatPanel({
                 value={openingMessage}
                 onChange={(e) => onOpeningMessageChange(e.target.value)}
                 placeholder="Scripted first line (blank = AI generates)"
-                className="flex-1 min-w-0 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+                className="flex-1 min-w-0 px-2 py-1 text-xs border border-gray-300 dark:border-white/10 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
               />
               <InfoTooltip text="Fixed first message from Bot A that does NOT count against the turn limit. Leave blank to let Bot A's AI generate its opening line from its system prompt." />
             </label>
@@ -619,7 +619,7 @@ export function ChatPanel({
               value={stopKeywords}
               onChange={(e) => onStopKeywordsChange(e.target.value)}
               placeholder="agreed, deal, accept"
-              className="w-44 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
+              className="w-44 px-2 py-1 text-xs border border-gray-300 dark:border-white/10 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
             />
             <InfoTooltip text="Comma-separated keywords. If any bot's response contains one, the conversation stops immediately. The trigger is recorded in CSV exports as a dependent variable." />
           </label>
@@ -648,7 +648,7 @@ export function ChatPanel({
               <ChevronDown className="w-3 h-3" />
             </button>
             {showShareMenu && (
-              <div className="absolute right-0 bottom-full mb-1 w-52 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-600 z-10 overflow-hidden">
+              <div className="absolute right-0 bottom-full mb-1 w-52 bg-white dark:bg-[#0f1e38] rounded-lg shadow-lg border border-gray-200 dark:border-white/10 z-10 overflow-hidden">
                 <button
                   onClick={() => { onSaveExperiment(); setShowShareMenu(false); }}
                   className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left"
@@ -659,17 +659,17 @@ export function ChatPanel({
                     <div className="text-gray-400 dark:text-gray-500 text-[10px]">Save config to your account</div>
                   </div>
                 </button>
-                <div className="border-t border-gray-100 dark:border-gray-700" />
+                <div className="border-t border-gray-100 dark:border-white/10" />
                 <button
                   onClick={() => { onShareConfig(); setShowShareMenu(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#16294a] text-left"
                 >
                   <Link className="w-3.5 h-3.5 text-gray-400" />
                   {shareCopied ? 'URL copied!' : 'Copy share URL'}
                 </button>
                 <button
                   onClick={() => { onDownloadConfigJson(); setShowShareMenu(false); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#16294a] text-left"
                 >
                   <FileText className="w-3.5 h-3.5 text-gray-400" />
                   Download as JSON
