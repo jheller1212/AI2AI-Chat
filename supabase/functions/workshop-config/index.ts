@@ -485,21 +485,40 @@ Deno.serve(async (req) => {
         newUsersByDay[day] = (newUsersByDay[day] || 0) + 1;
       });
 
-      // --- Conversations ---
-      let convQuery = admin.from('conversations').select('id, created_at, user_id');
+      // --- Conversations (also drives provider usage; messages.model stores the
+      //     bot's display name, so provider lives on model1_type/model2_type) ---
+      const providerLabel = (key: string): string => {
+        const k = (key || '').toLowerCase();
+        if (!k) return 'Unknown';
+        if (k === 'gpt4' || k.startsWith('gpt') || k.startsWith('openai') || k.startsWith('o1') || k.startsWith('o3')) return 'OpenAI';
+        if (k.startsWith('claude') || k === 'anthropic') return 'Anthropic';
+        if (k.startsWith('gemini') || k === 'google') return 'Gemini';
+        if (k.startsWith('mistral') || k.startsWith('magistral') || k.startsWith('ministral')) return 'Mistral';
+        return k.charAt(0).toUpperCase() + k.slice(1);
+      };
+      let convQuery = admin.from('conversations').select('id, created_at, user_id, model1_type, model2_type');
       if (dateFilter) convQuery = convQuery.gte('created_at', dateFilter);
       const { data: conversations } = await convQuery;
       const convRows = conversations || [];
       const totalConversations = convRows.length;
       const activeUsers = new Set(convRows.map((c: { user_id: string }) => c.user_id).filter(Boolean)).size;
       const convByDay: Record<string, number> = {};
-      convRows.forEach((c: { created_at: string }) => {
+      const providerBreakdown: Record<string, number> = {};
+      convRows.forEach((c: { created_at: string; model1_type?: string; model2_type?: string }) => {
         const day = c.created_at?.slice(0, 10) || '';
         if (day) convByDay[day] = (convByDay[day] || 0) + 1;
+        [c.model1_type, c.model2_type].forEach((t) => {
+          if (!t) return;
+          const fam = providerLabel(t);
+          providerBreakdown[fam] = (providerBreakdown[fam] || 0) + 1;
+        });
       });
+      const providerUsage = Object.entries(providerBreakdown)
+        .sort(([, a], [, b]) => b - a)
+        .map(([provider, count]) => ({ provider, count }));
 
-      // --- Messages (role split + provider breakdown) ---
-      let msgQuery = admin.from('messages').select('created_at, role, model');
+      // --- Messages (role split) ---
+      let msgQuery = admin.from('messages').select('created_at, role');
       if (dateFilter) msgQuery = msgQuery.gte('created_at', dateFilter);
       const { data: messages } = await msgQuery;
       const msgRows = messages || [];
@@ -507,32 +526,15 @@ Deno.serve(async (req) => {
       let userMessages = 0;
       let assistantMessages = 0;
       const msgByDay: Record<string, number> = {};
-      const providerBreakdown: Record<string, number> = {};
-      const providerFamily = (model: string): string => {
-        const m = (model || '').toLowerCase();
-        if (!m) return 'Unknown';
-        if (m.startsWith('gpt') || m.startsWith('o1') || m.startsWith('o3') || m.startsWith('o4')) return 'OpenAI';
-        if (m.startsWith('claude')) return 'Anthropic';
-        if (m.startsWith('gemini')) return 'Gemini';
-        if (m.startsWith('mistral') || m.startsWith('magistral') || m.startsWith('ministral')) return 'Mistral';
-        return 'Other';
-      };
-      msgRows.forEach((m: { created_at: string; role: string; model: string }) => {
+      msgRows.forEach((m: { created_at: string; role: string }) => {
         if (m.role === 'user') userMessages++;
         else assistantMessages++;
         const day = m.created_at?.slice(0, 10) || '';
         if (day) msgByDay[day] = (msgByDay[day] || 0) + 1;
-        if (m.role !== 'user') {
-          const fam = providerFamily(m.model);
-          providerBreakdown[fam] = (providerBreakdown[fam] || 0) + 1;
-        }
       });
       const avgMessagesPerConversation = totalConversations > 0
         ? Math.round((totalMessages / totalConversations) * 10) / 10
         : 0;
-      const providerUsage = Object.entries(providerBreakdown)
-        .sort(([, a], [, b]) => b - a)
-        .map(([provider, count]) => ({ provider, count }));
 
       // --- Experiments (classic + research) + scenarios ---
       let expQuery = admin.from('experiments').select('id', { count: 'exact', head: true });

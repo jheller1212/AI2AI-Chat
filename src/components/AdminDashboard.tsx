@@ -215,7 +215,7 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
 
               {/* Provider usage + Sign-ups by workshop */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <BreakdownCard title="Provider Usage (bot messages)" empty="No bot messages yet">
+                <BreakdownCard title="Provider Usage (bots configured)" empty="No conversations yet">
                   {stats.providerUsage.map(({ provider, count }) => (
                     <BarRow key={provider} label={provider} count={count} max={Math.max(...stats.providerUsage.map(p => p.count), 1)} />
                   ))}
