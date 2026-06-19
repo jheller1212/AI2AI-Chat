@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { backdropVariants, centerPanelVariants } from '../lib/motionVariants';
 import { X, Settings, User as UserIcon, Mail, Lock, Save, Clock, Trash2, KeyRound, PlayCircle, GraduationCap, Ticket, BarChart3 } from 'lucide-react';
 import { loadVault, saveVault, clearVault, type ProviderVault } from '../lib/apiKeyVault';
+import { MaskedKeyInput } from './MaskedKeyInput';
 
 interface UserSettingsProps {
   user: User;
@@ -294,10 +295,9 @@ export function UserSettings({ user, onClose, onOpenHistory, onDataDeleted, onAc
             ).map(({ provider, label, placeholder }) => (
               <div key={provider} className="flex items-center gap-3">
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400 w-24 flex-shrink-0">{label}</span>
-                <input
-                  type="password"
+                <MaskedKeyInput
                   value={vault[provider]}
-                  onChange={(e) => handleVaultChange(provider, e.target.value)}
+                  onChange={(value) => handleVaultChange(provider, value)}
                   className="flex-1 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
                   placeholder={placeholder}
                 />

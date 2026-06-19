@@ -230,7 +230,13 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       let msg = error instanceof Error
         ? (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message)
         : 'An unknown error occurred';
-      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
+      if (error instanceof APIError && (error.status === 401 || error.status === 403)) {
+        const providerNames: Record<string, string> = {
+          gpt4: 'OpenAI', claude: 'Anthropic', gemini: 'Google Gemini', mistral: 'Mistral',
+        };
+        const who = providerNames[config.model] || 'provider';
+        msg = `The ${who} API key looks invalid or unauthorized (HTTP ${error.status}). Please double-check the key — it may be mistyped, expired, or lack access to this model — then update it and start again.`;
+      } else if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
         msg += ' — Troubleshooting: (1) Is your API key copied correctly and complete? (2) Is the key still active and not expired? (3) Does your API account have available credits? (4) Check your browser console for CORS errors.';
       }
       setErrors([msg]);

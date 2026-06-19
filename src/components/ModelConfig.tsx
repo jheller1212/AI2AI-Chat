@@ -3,6 +3,7 @@ import { AIModel } from '../types';
 import { Info } from 'lucide-react';
 import { ApiKeyInstructions } from './ApiKeyInstructions';
 import { InfoTooltip } from './InfoTooltip';
+import { MaskedKeyInput } from './MaskedKeyInput';
 import { loadVault } from '../lib/apiKeyVault';
 
 interface ModelConfigProps {
@@ -147,10 +148,9 @@ export function ModelConfig({
             How to get key
           </button>
         </div>
-        <input
-          type="password"
+        <MaskedKeyInput
           value={apiKey}
-          onChange={(e) => onApiKeyChange(e.target.value)}
+          onChange={onApiKeyChange}
           className="w-full p-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl text-sm text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
           placeholder={API_KEY_PLACEHOLDERS[model]}
           disabled={disabled}
