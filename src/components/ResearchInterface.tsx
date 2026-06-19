@@ -193,11 +193,15 @@ export function ResearchInterface({
 
   // --- Export / Share handlers ---
   const handleExportTxt = () => {
+    const msgNumByConv: Record<string, number> = {};
     const lines = engine.messages
       .filter(m => m.role !== 'system' && !m.hidden)
       .map(m => {
         const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? bot.botName1 : bot.botName2);
-        return `[${label}]\n${m.content}`;
+        const convId = m.conversationId ?? '';
+        const msgNum = (msgNumByConv[convId] = (msgNumByConv[convId] ?? 0) + 1);
+        const idTag = convId ? ` · conv ${convId.slice(0, 8)} · msg ${msgNum}` : ` · msg ${msgNum}`;
+        return `[${label}${idTag}]\n${m.content}`;
       });
     const blob = new Blob([lines.join('\n\n---\n\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -224,10 +228,13 @@ export function ResearchInterface({
       if (m.conversationId) finalTurnByConv[m.conversationId] = (finalTurnByConv[m.conversationId] ?? 0) + 1;
     });
 
+    // Running 1-based message index within each conversation.
+    const msgNumByConv: Record<string, number> = {};
+
     const headers = [
       'experiment_id', 'experiment_name',
       'session_id', 'condition_label', 'repetition_number',
-      'conversation_id', 'timestamp', 'sender', 'bot_role',
+      'conversation_id', 'message_number', 'timestamp', 'sender', 'bot_role',
       'system_prompt_hash', 'model', 'temperature',
       'content', 'words', 'response_time_ms',
       'stopping_trigger', 'final_turn_number',
@@ -246,6 +253,7 @@ export function ResearchInterface({
       const promptText = m.systemPrompt ?? fallbackPrompt;
       const promptHash = promptText ? hashString(promptText) : '';
       const convId = m.conversationId ?? '';
+      const msgNum = (msgNumByConv[convId] = (msgNumByConv[convId] ?? 0) + 1);
 
       rows.push([
         csvField(experiments.currentExperimentId ?? ''),
@@ -254,6 +262,7 @@ export function ResearchInterface({
         csvField(conditionLabel ?? ''),
         csvField(String(m.repetitionNumber ?? 0)),
         csvField(convId),
+        csvField(String(msgNum)),
         csvField(new Date(m.timestamp).toISOString()),
         csvField(label),
         csvField(botRole),
