@@ -265,20 +265,75 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true }, 200, corsHeaders);
     }
 
-    // === ADD-ORGANIZER: super admin only ===
-    if (action === 'add-organizer') {
-      if (!SUPER_ADMIN || !user.email || user.email.toLowerCase().trim() !== SUPER_ADMIN) {
-        return jsonResponse({ error: 'Only the super admin can add organizers' }, 403, corsHeaders);
+    // === LIST-ORGANIZERS: organizers only ===
+    if (action === 'list-organizers') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
       }
 
-      const { email } = body;
-      if (!email) {
-        return jsonResponse({ error: 'Missing email' }, 400, corsHeaders);
+      const { data, error } = await admin
+        .from('workshop_organizers')
+        .select('email, created_at')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        return jsonResponse({ error: error.message }, 500, corsHeaders);
+      }
+
+      const organizers = (data || []).map((o: { email: string; created_at: string }) => ({
+        email: o.email,
+        created_at: o.created_at,
+        isSuper: !!SUPER_ADMIN && o.email.toLowerCase().trim() === SUPER_ADMIN,
+      }));
+
+      // Ensure the super admin always appears, even if not stored in the table.
+      if (SUPER_ADMIN && !organizers.some((o) => o.email.toLowerCase().trim() === SUPER_ADMIN)) {
+        organizers.unshift({ email: SUPER_ADMIN, created_at: '', isSuper: true });
+      }
+
+      return jsonResponse({ organizers, superAdmin: SUPER_ADMIN || null }, 200, corsHeaders);
+    }
+
+    // === ADD-ORGANIZER: organizers only ===
+    if (action === 'add-organizer') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const cleanEmail = (body.email || '').toLowerCase().trim();
+      if (!cleanEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) {
+        return jsonResponse({ error: 'Please enter a valid email address' }, 400, corsHeaders);
       }
 
       const { error } = await admin
         .from('workshop_organizers')
-        .upsert({ email: email.toLowerCase().trim(), added_by: user.id }, { onConflict: 'email' });
+        .upsert({ email: cleanEmail, added_by: user.id }, { onConflict: 'email' });
+
+      if (error) {
+        return jsonResponse({ error: error.message }, 500, corsHeaders);
+      }
+
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
+    // === REMOVE-ORGANIZER: organizers only; the super admin is protected ===
+    if (action === 'remove-organizer') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const cleanEmail = (body.email || '').toLowerCase().trim();
+      if (!cleanEmail) {
+        return jsonResponse({ error: 'Missing email' }, 400, corsHeaders);
+      }
+      if (SUPER_ADMIN && cleanEmail === SUPER_ADMIN) {
+        return jsonResponse({ error: 'The primary admin cannot be removed' }, 403, corsHeaders);
+      }
+
+      const { error } = await admin
+        .from('workshop_organizers')
+        .delete()
+        .eq('email', cleanEmail);
 
       if (error) {
         return jsonResponse({ error: error.message }, 500, corsHeaders);
@@ -402,65 +457,109 @@ Deno.serve(async (req) => {
       let dateFilter: string | null = null;
       const now = new Date();
       if (period === 'day') {
-        const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-        dateFilter = d.toISOString();
+        dateFilter = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
       } else if (period === 'week') {
-        const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6));
-        dateFilter = d.toISOString();
+        dateFilter = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6)).toISOString();
       } else if (period === 'month') {
-        const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29));
-        dateFilter = d.toISOString();
+        dateFilter = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29)).toISOString();
       }
       // 'all' or undefined => no date filter
 
-      // User count via admin auth
-      let totalUsers = 0;
+      // --- Users (via admin auth; created_at powers total/new + the signup timeline) ---
+      const allUserDates: string[] = [];
       try {
         let page = 1;
-        let count = 0;
         while (true) {
           const { data: { users: batch } } = await admin.auth.admin.listUsers({ perPage: 1000, page });
-          count += batch.length;
+          batch.forEach((u: { created_at?: string }) => { if (u.created_at) allUserDates.push(u.created_at); });
           if (batch.length < 1000) break;
           page++;
         }
-        totalUsers = count;
-      } catch {
-        totalUsers = 0;
-      }
+      } catch { /* ignore */ }
+      const totalUsers = allUserDates.length;
+      const newUsers = dateFilter ? allUserDates.filter((d) => d >= dateFilter!).length : totalUsers;
+      const newUsersByDay: Record<string, number> = {};
+      allUserDates.forEach((d) => {
+        if (dateFilter && d < dateFilter) return;
+        const day = d.slice(0, 10);
+        newUsersByDay[day] = (newUsersByDay[day] || 0) + 1;
+      });
 
-      // Conversations
-      let convQuery = admin.from('conversations').select('id, created_at');
+      // --- Conversations ---
+      let convQuery = admin.from('conversations').select('id, created_at, user_id');
       if (dateFilter) convQuery = convQuery.gte('created_at', dateFilter);
       const { data: conversations } = await convQuery;
-      const totalConversations = conversations?.length || 0;
-
-      // Conversations by day
-      const dayMap: Record<string, number> = {};
-      (conversations || []).forEach((c: { created_at: string }) => {
+      const convRows = conversations || [];
+      const totalConversations = convRows.length;
+      const activeUsers = new Set(convRows.map((c: { user_id: string }) => c.user_id).filter(Boolean)).size;
+      const convByDay: Record<string, number> = {};
+      convRows.forEach((c: { created_at: string }) => {
         const day = c.created_at?.slice(0, 10) || '';
-        if (day) dayMap[day] = (dayMap[day] || 0) + 1;
+        if (day) convByDay[day] = (convByDay[day] || 0) + 1;
       });
-      const conversationsByDay = Object.entries(dayMap)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([day, count]) => ({ day, count }));
 
-      // Messages
-      let msgQuery = admin.from('messages').select('id', { count: 'exact', head: true });
+      // --- Messages (role split + provider breakdown) ---
+      let msgQuery = admin.from('messages').select('created_at, role, model');
       if (dateFilter) msgQuery = msgQuery.gte('created_at', dateFilter);
-      const { count: totalMessages } = await msgQuery;
+      const { data: messages } = await msgQuery;
+      const msgRows = messages || [];
+      const totalMessages = msgRows.length;
+      let userMessages = 0;
+      let assistantMessages = 0;
+      const msgByDay: Record<string, number> = {};
+      const providerBreakdown: Record<string, number> = {};
+      const providerFamily = (model: string): string => {
+        const m = (model || '').toLowerCase();
+        if (!m) return 'Unknown';
+        if (m.startsWith('gpt') || m.startsWith('o1') || m.startsWith('o3') || m.startsWith('o4')) return 'OpenAI';
+        if (m.startsWith('claude')) return 'Anthropic';
+        if (m.startsWith('gemini')) return 'Gemini';
+        if (m.startsWith('mistral') || m.startsWith('magistral') || m.startsWith('ministral')) return 'Mistral';
+        return 'Other';
+      };
+      msgRows.forEach((m: { created_at: string; role: string; model: string }) => {
+        if (m.role === 'user') userMessages++;
+        else assistantMessages++;
+        const day = m.created_at?.slice(0, 10) || '';
+        if (day) msgByDay[day] = (msgByDay[day] || 0) + 1;
+        if (m.role !== 'user') {
+          const fam = providerFamily(m.model);
+          providerBreakdown[fam] = (providerBreakdown[fam] || 0) + 1;
+        }
+      });
+      const avgMessagesPerConversation = totalConversations > 0
+        ? Math.round((totalMessages / totalConversations) * 10) / 10
+        : 0;
+      const providerUsage = Object.entries(providerBreakdown)
+        .sort(([, a], [, b]) => b - a)
+        .map(([provider, count]) => ({ provider, count }));
 
-      // Experiments
+      // --- Experiments (classic + research) + scenarios ---
       let expQuery = admin.from('experiments').select('id', { count: 'exact', head: true });
       if (dateFilter) expQuery = expQuery.gte('created_at', dateFilter);
-      const { count: totalExperiments } = await expQuery;
+      const { count: classicExperiments } = await expQuery;
+      let rExpQuery = admin.from('research_experiments').select('id', { count: 'exact', head: true });
+      if (dateFilter) rExpQuery = rExpQuery.gte('created_at', dateFilter);
+      const { count: researchExperiments } = await rExpQuery;
+      const totalExperiments = (classicExperiments || 0) + (researchExperiments || 0);
+      let scenQuery = admin.from('scenarios').select('id', { count: 'exact', head: true });
+      if (dateFilter) scenQuery = scenQuery.gte('created_at', dateFilter);
+      const { count: totalScenarios } = await scenQuery;
 
-      // Workshops
+      // --- Events (exports + provider errors) ---
+      let evQuery = admin.from('events').select('event_type, created_at');
+      if (dateFilter) evQuery = evQuery.gte('created_at', dateFilter);
+      const { data: events } = await evQuery;
+      const evRows = events || [];
+      const totalExports = evRows.filter((e: { event_type: string }) => e.event_type === 'export').length;
+      const providerErrors = evRows.filter((e: { event_type: string }) => e.event_type === 'provider_error').length;
+
+      // --- Workshops ---
       const { data: workshops } = await admin.from('workshops').select('active');
       const activeWorkshops = (workshops || []).filter((w: { active: boolean }) => w.active).length;
       const inactiveWorkshops = (workshops || []).filter((w: { active: boolean }) => !w.active).length;
 
-      // Workshop sign-ups
+      // --- Workshop sign-ups ---
       let signupQuery = admin.from('workshop_signups').select('user_id, workshop_code, created_at');
       if (dateFilter) signupQuery = signupQuery.gte('created_at', dateFilter);
       const { data: signups } = await signupQuery.order('created_at', { ascending: false });
@@ -473,36 +572,68 @@ Deno.serve(async (req) => {
         uniqueSignupKeys.add(key);
         return true;
       });
-
       const totalSignups = uniqueSignups.length;
 
-      // Group by workshop
       const workshopMap: Record<string, number> = {};
-      uniqueSignups.forEach((s: { workshop_code: string }) => {
+      const signupByDay: Record<string, number> = {};
+      uniqueSignups.forEach((s: { workshop_code: string; created_at: string }) => {
         workshopMap[s.workshop_code] = (workshopMap[s.workshop_code] || 0) + 1;
+        const day = s.created_at?.slice(0, 10) || '';
+        if (day) signupByDay[day] = (signupByDay[day] || 0) + 1;
       });
       const signupsByWorkshop = Object.entries(workshopMap)
         .sort(([, a], [, b]) => b - a)
         .map(([workshop_code, count]) => ({ workshop_code, count }));
 
-      // Recent sign-ups (last 20, deduplicated)
       const recentSignups = uniqueSignups.slice(0, 20).map((s: { user_id: string; workshop_code: string; created_at: string }) => ({
         user_id: s.user_id,
         workshop_code: s.workshop_code,
         created_at: s.created_at,
       }));
 
+      // --- Unified daily timeline ---
+      const allDays = new Set<string>([
+        ...Object.keys(convByDay),
+        ...Object.keys(msgByDay),
+        ...Object.keys(newUsersByDay),
+        ...Object.keys(signupByDay),
+      ]);
+      const timeline = [...allDays].sort((a, b) => a.localeCompare(b)).map((day) => ({
+        day,
+        conversations: convByDay[day] || 0,
+        messages: msgByDay[day] || 0,
+        newUsers: newUsersByDay[day] || 0,
+        signups: signupByDay[day] || 0,
+      }));
+
+      // Back-compat for any older client
+      const conversationsByDay = Object.entries(convByDay)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, count]) => ({ day, count }));
+
       return jsonResponse({
         totalUsers,
+        newUsers,
+        activeUsers,
         totalConversations,
-        totalMessages: totalMessages || 0,
-        totalExperiments: totalExperiments || 0,
+        totalMessages,
+        userMessages,
+        assistantMessages,
+        avgMessagesPerConversation,
+        totalExperiments,
+        classicExperiments: classicExperiments || 0,
+        researchExperiments: researchExperiments || 0,
+        totalScenarios: totalScenarios || 0,
+        totalExports,
+        providerErrors,
+        providerUsage,
         activeWorkshops,
         inactiveWorkshops,
         totalSignups,
-        conversationsByDay,
         signupsByWorkshop,
         recentSignups,
+        conversationsByDay,
+        timeline,
       }, 200, corsHeaders);
     }
 
