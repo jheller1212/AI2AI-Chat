@@ -45,6 +45,8 @@ interface ChatPanelProps {
   conditionLabel?: string;
   botMode: 'symmetric' | 'asymmetric';
   onBotModeChange: (mode: 'symmetric' | 'asymmetric') => void;
+  startingBot: 'a' | 'b';
+  onStartingBotChange: (v: 'a' | 'b') => void;
   openingMessage: string;
   onOpeningMessageChange: (v: string) => void;
   stopKeywords: string;
@@ -93,6 +95,8 @@ export function ChatPanel({
   conditionLabel,
   botMode,
   onBotModeChange,
+  startingBot,
+  onStartingBotChange,
   openingMessage,
   onOpeningMessageChange,
   stopKeywords,
@@ -245,10 +249,18 @@ export function ChatPanel({
 
           <span className="text-sm text-gray-400 dark:text-gray-500">
             <span className="font-medium" style={{ color: textColor1 !== '#312E81' ? textColor1 : '#4338CA' }}>{botName1}</span>
-            {botMode === 'asymmetric' && <span className="ml-1 text-[10px] text-amber-500 dark:text-amber-400">(I)</span>}
+            {botMode === 'asymmetric' && (
+              startingBot === 'a'
+                ? <span className="ml-1 text-[10px] text-amber-500 dark:text-amber-400">(I)</span>
+                : <span className="ml-1 text-[10px] text-sky-500 dark:text-sky-400">(R)</span>
+            )}
             <span className="mx-1.5">vs</span>
             <span className="font-medium" style={{ color: textColor2 !== '#064E3B' ? textColor2 : '#047857' }}>{botName2}</span>
-            {botMode === 'asymmetric' && <span className="ml-1 text-[10px] text-sky-500 dark:text-sky-400">(R)</span>}
+            {botMode === 'asymmetric' && (
+              startingBot === 'a'
+                ? <span className="ml-1 text-[10px] text-sky-500 dark:text-sky-400">(R)</span>
+                : <span className="ml-1 text-[10px] text-amber-500 dark:text-amber-400">(I)</span>
+            )}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -568,38 +580,52 @@ export function ChatPanel({
 
         {/* Research controls row */}
         <div className="flex flex-wrap items-start gap-x-5 gap-y-2.5 text-sm pt-2 border-t border-gray-100 dark:border-gray-700">
-          {/* SPEC-03: bot role mode toggle */}
+          {/* Conversation starts with */}
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500 dark:text-gray-400">Bot roles</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">Conversation starts with</span>
             <div className="flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden text-[11px]">
               <button
-                onClick={() => onBotModeChange('symmetric')}
-                className={`px-2.5 py-1 transition-colors ${
-                  botMode === 'symmetric'
+                onClick={() => onStartingBotChange('a')}
+                className={`px-2.5 py-1 transition-colors max-w-[140px] truncate ${
+                  startingBot === 'a'
                     ? 'bg-indigo-600 text-white'
                     : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                 }`}
               >
-                Symmetric
+                {botName1 || 'Bot A'}
               </button>
               <button
-                onClick={() => onBotModeChange('asymmetric')}
-                className={`px-2.5 py-1 transition-colors border-l border-gray-300 dark:border-gray-600 ${
-                  botMode === 'asymmetric'
+                onClick={() => onStartingBotChange('b')}
+                className={`px-2.5 py-1 transition-colors border-l border-gray-300 dark:border-gray-600 max-w-[140px] truncate ${
+                  startingBot === 'b'
                     ? 'bg-indigo-600 text-white'
                     : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                 }`}
               >
-                Asymmetric
+                {botName2 || 'Bot B'}
               </button>
             </div>
-            <InfoTooltip text="Symmetric: both bots are equal. Asymmetric: Bot A is the Initiator (speaks first); Bot B is the Responder. Roles are labelled in CSV exports. Use for negotiation or role-play research." />
+            <InfoTooltip text="Choose which bot sends the first message. The bot that starts is the Initiator; the other is the Responder." />
           </div>
 
-          {/* SPEC-03: scripted opening message for Bot A */}
+          {/* Distinct roles toggle */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={botMode === 'asymmetric'}
+              onChange={(e) => onBotModeChange(e.target.checked ? 'asymmetric' : 'symmetric')}
+              className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span className="text-xs text-gray-500 dark:text-gray-400">Give bots distinct roles (Initiator / Responder)</span>
+            <InfoTooltip text="Off: both bots are treated as equals. On: the starting bot is the Initiator and the other is the Responder (labelled in CSV exports), and you can give the Initiator a scripted opening line." />
+          </label>
+
+          {/* Scripted opening message for the starting bot */}
           {botMode === 'asymmetric' && (
             <label className="flex items-center gap-2 flex-1 min-w-0">
-              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">Bot A opener</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                {(startingBot === 'a' ? (botName1 || 'Bot A') : (botName2 || 'Bot B'))} opener
+              </span>
               <input
                 type="text"
                 value={openingMessage}
@@ -607,7 +633,7 @@ export function ChatPanel({
                 placeholder="Scripted first line (blank = AI generates)"
                 className="flex-1 min-w-0 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded focus:ring-1 focus:ring-indigo-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500"
               />
-              <InfoTooltip text="Fixed first message from Bot A that does NOT count against the turn limit. Leave blank to let Bot A's AI generate its opening line from its system prompt." />
+              <InfoTooltip text="Fixed first message from the starting bot that does NOT count against the turn limit. Leave blank to let that bot's AI generate its opening line from its system prompt." />
             </label>
           )}
 

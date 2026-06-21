@@ -40,6 +40,7 @@ interface SetupPageProps {
   chatMode: boolean; onChatModeChange: (v: boolean) => void;
   saveHistory: boolean; onSaveHistoryChange: (v: boolean) => void;
   botMode: 'symmetric' | 'asymmetric'; onBotModeChange: (v: 'symmetric' | 'asymmetric') => void;
+  startingBot: 'a' | 'b'; onStartingBotChange: (v: 'a' | 'b') => void;
   openingMessage: string; onOpeningMessageChange: (v: string) => void;
   stopKeywords: string; onStopKeywordsChange: (v: string) => void;
   // Actions
@@ -207,26 +208,36 @@ export function SetupPage(props: SetupPageProps) {
                 </div>
               )}
 
-              {/* Bot roles */}
+              {/* Conversation start + roles */}
               <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm items-center">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">Bot roles</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Conversation starts with</span>
                   <div className="flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden text-[11px]">
-                    <button onClick={() => props.onBotModeChange('symmetric')}
-                      className={`px-2.5 py-1 transition-colors ${props.botMode === 'symmetric' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
-                      Symmetric
+                    <button onClick={() => props.onStartingBotChange('a')}
+                      className={`px-2.5 py-1 transition-colors max-w-[140px] truncate ${props.startingBot === 'a' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                      {props.botName1 || 'Bot A'}
                     </button>
-                    <button onClick={() => props.onBotModeChange('asymmetric')}
-                      className={`px-2.5 py-1 transition-colors border-l border-gray-300 dark:border-gray-600 ${props.botMode === 'asymmetric' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
-                      Asymmetric
+                    <button onClick={() => props.onStartingBotChange('b')}
+                      className={`px-2.5 py-1 transition-colors border-l border-gray-300 dark:border-gray-600 max-w-[140px] truncate ${props.startingBot === 'b' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                      {props.botName2 || 'Bot B'}
                     </button>
                   </div>
-                  <InfoTooltip text="Symmetric: both bots are equal. Asymmetric: Bot A is the Initiator; Bot B is the Responder." />
+                  <InfoTooltip text="Choose which bot sends the first message. The bot that starts is the Initiator; the other is the Responder." />
                 </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={props.botMode === 'asymmetric'}
+                    onChange={e => props.onBotModeChange(e.target.checked ? 'asymmetric' : 'symmetric')}
+                    className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500" />
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Give bots distinct roles (Initiator / Responder)</span>
+                  <InfoTooltip text="Off: both bots are treated as equals. On: the starting bot is the Initiator and the other is the Responder, and you can give the Initiator a scripted opening line." />
+                </label>
 
                 {props.botMode === 'asymmetric' && (
                   <label className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">Bot A opener</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                      {(props.startingBot === 'a' ? (props.botName1 || 'Bot A') : (props.botName2 || 'Bot B'))} opener
+                    </span>
                     <input type="text" value={props.openingMessage} onChange={e => props.onOpeningMessageChange(e.target.value)}
                       placeholder="Scripted first line (blank = AI generates)"
                       className="flex-1 min-w-0 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500" />

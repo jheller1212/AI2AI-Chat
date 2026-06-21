@@ -32,6 +32,7 @@ interface ConversationEngineOptions {
   stopKeywords: string;
   saveHistory: boolean;
   botMode: 'symmetric' | 'asymmetric';
+  startingBot: 'a' | 'b';
   openingMessage: string;
   chatMode: boolean;
   // Context
@@ -283,12 +284,14 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
         }
       }
     } else if (dbConversationId) {
-      // Asymmetric scripted opener: the chain starts from a pre-written Bot 1
-      // message — save it too, otherwise the conversation is incomplete in
-      // history and bot attribution can't be recovered on load.
+      // Distinct-roles scripted opener: the chain starts from a pre-written
+      // message authored by the starting bot — save it too, otherwise the
+      // conversation is incomplete in history and bot attribution can't be
+      // recovered on load. The opener may be from either bot depending on
+      // startingBot, so save it under the matching bot name.
       const opener = baseMessages[baseMessages.length - 1];
-      if (opener?.role === 'assistant' && opener.botIndex === 1) {
-        await saveMessageToDb(dbConversationId, opener, 'assistant', opts.botName1);
+      if (opener?.role === 'assistant' && (opener.botIndex === 1 || opener.botIndex === 2)) {
+        await saveMessageToDb(dbConversationId, opener, 'assistant', opener.botIndex === 1 ? opts.botName1 : opts.botName2);
       }
     }
 
@@ -336,7 +339,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
   }, [opts.model1, opts.model2, opts.apiKey1, opts.apiKey2, opts.orgId1, opts.orgId2,
       opts.modelVersion1, opts.modelVersion2, opts.temperature1, opts.temperature2,
       opts.maxTokens1, opts.maxTokens2, opts.systemPrompt1, opts.systemPrompt2,
-      opts.botName1, opts.botMode, opts.userId, opts.currentExperimentId,
+      opts.botName1, opts.botName2, opts.botMode, opts.startingBot, opts.userId, opts.currentExperimentId,
       opts.buildEffectivePrompt, generateAIResponse]);
 
   const handleSendMessage = async (
@@ -370,20 +373,24 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
 
     const localConversationId = crypto.randomUUID();
 
-    // Asymmetric mode with a scripted opener
+    // Whether bot 1 speaks first this run is driven by startingBot.
+    const startingIsBot1 = opts.startingBot === 'a';
+
+    // Distinct-roles (asymmetric) mode with a scripted opener.
+    // The opener is authored by the STARTING bot; the OTHER bot speaks next.
     if (opts.botMode === 'asymmetric' && opts.openingMessage.trim()) {
       const opener: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: opts.openingMessage.trim(),
         timestamp: Date.now(),
-        botIndex: 1,
+        botIndex: startingIsBot1 ? 1 : 2,
         conversationId: localConversationId,
         wordCount: opts.openingMessage.trim().split(/\s+/).filter(Boolean).length,
         timeTaken: 0,
-        modelVersion: opts.modelVersion1,
-        temperature: opts.temperature1,
-        systemPrompt: opts.systemPrompt1,
+        modelVersion: startingIsBot1 ? opts.modelVersion1 : opts.modelVersion2,
+        temperature: startingIsBot1 ? opts.temperature1 : opts.temperature2,
+        systemPrompt: startingIsBot1 ? opts.systemPrompt1 : opts.systemPrompt2,
         repetitionNumber: 0,
       };
 
@@ -396,10 +403,13 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
         opener,
       ];
 
-      initialChainRef.current = { userMsg: '', allMessages, localConversationId, bot1StartsFirst: false };
+      // After the opener the OTHER bot responds, so the next responder is bot 1
+      // iff the starting bot was bot 2.
+      const bot1StartsFirst = !startingIsBot1;
+      initialChainRef.current = { userMsg: '', allMessages, localConversationId, bot1StartsFirst };
 
       try {
-        await startChain('', allMessages, 0, localConversationId, false);
+        await startChain('', allMessages, 0, localConversationId, bot1StartsFirst);
       } catch (error) {
         setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
         setIsLoading(false);
@@ -407,7 +417,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       return;
     }
 
-    // Symmetric mode
+    // Symmetric mode — the starting bot is the first responder.
     const trimmed = userInput.trim();
     const newUserMessage: Message = trimmed
       ? { id: crypto.randomUUID(), role: 'user', content: trimmed, timestamp: Date.now() }
@@ -415,16 +425,22 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
 
     setMessages(prev => [...prev, newUserMessage]);
 
+    // Seed the STARTING bot's system prompt so it is in context for the first
+    // turn. (Providers derive the system prompt solely from system-role
+    // messages, not from per-call config.) When bot 1 starts this preserves the
+    // original behavior of seeding sys1.
     const allMessages: Message[] = [
-      { id: 'sys1', role: 'system', content: opts.buildEffectivePrompt(opts.systemPrompt1, 1), timestamp: Date.now() },
+      startingIsBot1
+        ? { id: 'sys1', role: 'system', content: opts.buildEffectivePrompt(opts.systemPrompt1, 1), timestamp: Date.now() }
+        : { id: 'sys2', role: 'system', content: opts.buildEffectivePrompt(opts.systemPrompt2, 2), timestamp: Date.now() },
       ...messages,
       newUserMessage,
     ];
 
-    initialChainRef.current = { userMsg: trimmed, allMessages, localConversationId, bot1StartsFirst: true };
+    initialChainRef.current = { userMsg: trimmed, allMessages, localConversationId, bot1StartsFirst: startingIsBot1 };
 
     try {
-      await startChain(trimmed, allMessages, 0, localConversationId, true);
+      await startChain(trimmed, allMessages, 0, localConversationId, startingIsBot1);
     } catch (error) {
       setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
       setIsLoading(false);

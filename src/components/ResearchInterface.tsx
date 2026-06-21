@@ -79,6 +79,7 @@ export function ResearchInterface({
     setDelayVariance: settings.setDelayVariance,
     setRepetitionCount: settings.setRepetitionCount,
     setBotMode: settings.setBotMode,
+    setStartingBot: settings.setStartingBot,
     setOpeningMessage: settings.setOpeningMessage,
     setStopKeywords: settings.setStopKeywords,
     setUserInput: settings.setUserInput,
@@ -91,7 +92,8 @@ export function ResearchInterface({
     }),
     getSettingsConfig: () => ({
       mi: settings.maxInteractions, rd: settings.responseDelay, dv: settings.delayVariance,
-      rc: settings.repetitionCount, bm: settings.botMode, om: settings.openingMessage,
+      rc: settings.repetitionCount, bm: settings.botMode, sb: settings.startingBot,
+      om: settings.openingMessage,
       sk: settings.stopKeywords, ui: settings.userInput,
     }),
   });
@@ -141,6 +143,7 @@ export function ResearchInterface({
       if (s.sharedPrompt) settings.setUserInput(s.sharedPrompt);
       if (s.stopKeywords) settings.setStopKeywords(s.stopKeywords);
       if (s.botMode) settings.setBotMode(s.botMode);
+      if (s.startingBot) settings.setStartingBot(s.startingBot);
     }
 
     if (workshopData.config) {
@@ -171,7 +174,8 @@ export function ResearchInterface({
       responseDelay: settings.responseDelay, delayVariance: settings.delayVariance,
       autoInteract: settings.autoInteract, maxInteractions: settings.maxInteractions,
       repetitionCount: settings.repetitionCount, saveHistory: settings.saveHistory,
-      botMode: settings.botMode, openingMessage: settings.openingMessage,
+      botMode: settings.botMode, startingBot: settings.startingBot,
+      openingMessage: settings.openingMessage,
       stopKeywords: settings.stopKeywords, chatMode: settings.chatMode,
     });
   }, [bot.model1, bot.model2, bot.modelVersion1, bot.modelVersion2,
@@ -180,7 +184,8 @@ export function ResearchInterface({
       bot.bubbleColor1, bot.bubbleColor2, bot.textColor1, bot.textColor2,
       settings.responseDelay, settings.delayVariance, settings.autoInteract,
       settings.maxInteractions, settings.repetitionCount, settings.saveHistory,
-      settings.botMode, settings.openingMessage, settings.stopKeywords, settings.chatMode]);
+      settings.botMode, settings.startingBot, settings.openingMessage,
+      settings.stopKeywords, settings.chatMode]);
 
   // --- Scenario loading ---
   const handleLoadScenario = (scenario: Scenario) => {
@@ -189,6 +194,7 @@ export function ResearchInterface({
     settings.setUserInput(scenario.sharedPrompt);
     settings.setStopKeywords(scenario.stopKeywords);
     settings.setBotMode(scenario.botMode);
+    settings.setStartingBot(scenario.startingBot ?? 'a');
   };
 
   // --- Export / Share handlers ---
@@ -247,8 +253,9 @@ export function ResearchInterface({
       const fallbackPrompt = m.botIndex === 1 ? bot.systemPrompt1 : m.botIndex === 2 ? bot.systemPrompt2 : '';
       const fallbackModel  = m.botIndex === 1 ? bot.modelVersion1 : m.botIndex === 2 ? bot.modelVersion2 : '';
       const fallbackTemp   = m.botIndex === 1 ? bot.temperature1  : m.botIndex === 2 ? bot.temperature2  : '';
+      const initiatorBotIndex = settings.startingBot === 'a' ? 1 : 2;
       const botRole = settings.botMode === 'asymmetric'
-        ? (m.botIndex === 1 ? 'initiator' : m.botIndex === 2 ? 'responder' : '')
+        ? (m.botIndex === 1 || m.botIndex === 2 ? (m.botIndex === initiatorBotIndex ? 'initiator' : 'responder') : '')
         : '';
       const promptText = m.systemPrompt ?? fallbackPrompt;
       const promptHash = promptText ? hashString(promptText) : '';
@@ -294,13 +301,14 @@ export function ResearchInterface({
     m2: bot.model2, mv2: bot.modelVersion2, t2: bot.temperature2, mt2: bot.maxTokens2,
     sp2: bot.systemPrompt2, n2: bot.botName2,
     mi: settings.maxInteractions, rd: settings.responseDelay, dv: settings.delayVariance,
-    rc: settings.repetitionCount, bm: settings.botMode, om: settings.openingMessage,
+    rc: settings.repetitionCount, bm: settings.botMode, sb: settings.startingBot,
+    om: settings.openingMessage,
     sk: settings.stopKeywords,
     bc1: bot.bubbleColor1, bc2: bot.bubbleColor2, tc1: bot.textColor1, tc2: bot.textColor2,
   }), [bot.model1, bot.modelVersion1, bot.temperature1, bot.maxTokens1, bot.systemPrompt1, bot.botName1,
        bot.model2, bot.modelVersion2, bot.temperature2, bot.maxTokens2, bot.systemPrompt2, bot.botName2,
        settings.maxInteractions, settings.responseDelay, settings.delayVariance, settings.repetitionCount,
-       settings.botMode, settings.openingMessage, settings.stopKeywords,
+       settings.botMode, settings.startingBot, settings.openingMessage, settings.stopKeywords,
        bot.bubbleColor1, bot.bubbleColor2, bot.textColor1, bot.textColor2]);
 
   const handleShareConfig = useCallback(() => {
@@ -570,6 +578,7 @@ export function ResearchInterface({
           chatMode={settings.chatMode} onChatModeChange={settings.setChatMode}
           saveHistory={settings.saveHistory} onSaveHistoryChange={settings.setSaveHistory}
           botMode={settings.botMode} onBotModeChange={settings.setBotMode}
+          startingBot={settings.startingBot} onStartingBotChange={settings.setStartingBot}
           openingMessage={settings.openingMessage} onOpeningMessageChange={settings.setOpeningMessage}
           stopKeywords={settings.stopKeywords} onStopKeywordsChange={settings.setStopKeywords}
           onStartConversation={() => engine.handleSendMessage(settings.userInput, setCurrentView)}
@@ -619,6 +628,8 @@ export function ResearchInterface({
               conditionLabel={conditionLabel}
               botMode={settings.botMode}
               onBotModeChange={settings.setBotMode}
+              startingBot={settings.startingBot}
+              onStartingBotChange={settings.setStartingBot}
               openingMessage={settings.openingMessage}
               onOpeningMessageChange={settings.setOpeningMessage}
               stopKeywords={settings.stopKeywords}

@@ -12,6 +12,7 @@ interface UseExperimentsOptions {
   setDelayVariance: (v: boolean) => void;
   setRepetitionCount: (v: number) => void;
   setBotMode: (v: 'symmetric' | 'asymmetric') => void;
+  setStartingBot: (v: 'a' | 'b') => void;
   setOpeningMessage: (v: string) => void;
   setStopKeywords: (v: string) => void;
   setUserInput: (v: string) => void;
@@ -59,6 +60,9 @@ export function useExperiments(opts: UseExperimentsOptions) {
     if (b('dv') !== undefined) opts.setDelayVariance(b('dv')!);
     if (n('rc') !== undefined) opts.setRepetitionCount(n('rc')!);
     if (s('bm')) opts.setBotMode(s('bm') as 'symmetric' | 'asymmetric');
+    // Older experiments predate startingBot — default to 'a' (bot 1 starts) so
+    // they replay exactly as they did before this setting existed.
+    opts.setStartingBot((s('sb') as 'a' | 'b') ?? 'a');
     if (s('om') !== undefined) opts.setOpeningMessage(s('om')!);
     if (s('sk') !== undefined) opts.setStopKeywords(s('sk')!);
     // Scenario prompt: restore the saved value, or reset to empty for older

@@ -16,7 +16,7 @@ export interface WorkshopData {
   welcome: string;
   provider: string;
   hasKey: boolean;
-  scenario: { botAPrompt: string; botBPrompt: string; sharedPrompt: string; stopKeywords: string; botMode: 'symmetric' | 'asymmetric' } | null;
+  scenario: { botAPrompt: string; botBPrompt: string; sharedPrompt: string; stopKeywords: string; botMode: 'symmetric' | 'asymmetric'; startingBot?: 'a' | 'b' } | null;
   config: Record<string, unknown> | null;
 }
 
