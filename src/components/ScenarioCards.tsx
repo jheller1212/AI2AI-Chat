@@ -13,6 +13,7 @@ export interface Scenario {
   botBPrompt: string;
   stopKeywords: string;
   botMode: 'symmetric' | 'asymmetric';
+  startingBot?: 'a' | 'b';
 }
 
 export const DEMO_SCENARIOS: Scenario[] = [

@@ -25,6 +25,9 @@ export function useSettingsPersistence({ saved, sharedConfig }: UseSettingsPersi
   const [botMode, setBotMode] = useState<'symmetric' | 'asymmetric'>(
     (sc(sharedConfig, 'bm') as 'symmetric' | 'asymmetric') ?? (saved?.botMode as string) ?? 'symmetric'
   );
+  const [startingBot, setStartingBot] = useState<'a' | 'b'>(
+    (sc(sharedConfig, 'sb') as 'a' | 'b') ?? (saved?.startingBot as 'a' | 'b') ?? 'a'
+  );
   const [openingMessage, setOpeningMessage] = useState<string>(sc(sharedConfig, 'om') ?? (saved?.openingMessage as string) ?? '');
   const [stopKeywords, setStopKeywords] = useState<string>(sc(sharedConfig, 'sk') ?? (saved?.stopKeywords as string) ?? '');
   const [chatMode, setChatMode] = useState<boolean>((saved?.chatMode as boolean) ?? true);
@@ -38,6 +41,7 @@ export function useSettingsPersistence({ saved, sharedConfig }: UseSettingsPersi
     maxInteractions, setMaxInteractions,
     repetitionCount, setRepetitionCount,
     botMode, setBotMode,
+    startingBot, setStartingBot,
     openingMessage, setOpeningMessage,
     stopKeywords, setStopKeywords,
     chatMode, setChatMode,
