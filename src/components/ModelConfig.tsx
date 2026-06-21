@@ -5,6 +5,7 @@ import { ApiKeyInstructions } from './ApiKeyInstructions';
 import { InfoTooltip } from './InfoTooltip';
 import { MaskedKeyInput } from './MaskedKeyInput';
 import { loadVault } from '../lib/apiKeyVault';
+import { PROVIDER_MODELS } from '../lib/models';
 
 interface ModelConfigProps {
   label: string;
@@ -22,35 +23,6 @@ interface ModelConfigProps {
   onMaxTokensChange: (tokens: number) => void;
   disabled?: boolean;
 }
-
-const PROVIDER_MODELS: Record<AIModel, { id: string; name: string; maxTokens: number }[]> = {
-  gpt4: [
-    { id: 'gpt-4o', name: 'GPT-4o', maxTokens: 128000 },
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini', maxTokens: 128000 },
-    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', maxTokens: 128000 },
-    { id: 'gpt-4', name: 'GPT-4', maxTokens: 8192 },
-    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', maxTokens: 16384 },
-  ],
-  claude: [
-    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Latest)', maxTokens: 16000 },
-    { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', maxTokens: 16000 },
-    { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5', maxTokens: 16000 },
-    { id: 'claude-opus-4-5', name: 'Claude Opus 4.5', maxTokens: 16000 },
-    { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', maxTokens: 16000 },
-  ],
-  gemini: [
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', maxTokens: 8192 },
-    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite', maxTokens: 8192 },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', maxTokens: 8192 },
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', maxTokens: 8192 },
-  ],
-  mistral: [
-    { id: 'mistral-large-latest', name: 'Mistral Large', maxTokens: 4096 },
-    { id: 'mistral-medium-latest', name: 'Mistral Medium', maxTokens: 4096 },
-    { id: 'mistral-small-latest', name: 'Mistral Small', maxTokens: 4096 },
-    { id: 'open-mistral-7b', name: 'Mistral 7B (Open)', maxTokens: 4096 },
-  ],
-};
 
 const PROVIDER_LABELS: Record<AIModel, string> = {
   gpt4: 'OpenAI',
