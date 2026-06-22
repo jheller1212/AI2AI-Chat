@@ -1,4 +1,5 @@
 import { APIProvider, APIConfig, APIResponse, APIError } from '../types';
+import { supportsTemperature } from '../../models';
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -35,7 +36,9 @@ export class AnthropicProvider implements APIProvider {
           messages: chatMessages,
           ...(systemText ? { system: systemText } : {}),
           max_tokens: config.maxTokens,
-          temperature: config.temperature
+          // Opus 4.7+/Fable reject `temperature` (HTTP 400) — omit it for those
+          // models. The UI still exposes the control for consistency.
+          ...(supportsTemperature(config.model) ? { temperature: config.temperature } : {})
         })
       });
     } finally {

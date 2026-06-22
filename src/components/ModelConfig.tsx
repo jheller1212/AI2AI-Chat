@@ -5,7 +5,7 @@ import { ApiKeyInstructions } from './ApiKeyInstructions';
 import { InfoTooltip } from './InfoTooltip';
 import { MaskedKeyInput } from './MaskedKeyInput';
 import { loadVault } from '../lib/apiKeyVault';
-import { PROVIDER_MODELS } from '../lib/models';
+import { PROVIDER_MODELS, supportsTemperature } from '../lib/models';
 
 interface ModelConfigProps {
   label: string;
@@ -170,6 +170,11 @@ export function ModelConfig({
           <span>Focused</span>
           <span>Creative</span>
         </div>
+        {!supportsTemperature(modelVersion) && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+            This model (Opus 4.7+) ignores temperature — it uses adaptive reasoning, so this setting won't affect its output.
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
