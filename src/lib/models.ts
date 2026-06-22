@@ -5,11 +5,11 @@ import type { AIModel } from '../types';
  * Used by both the per-bot model picker (ModelConfig) and the workshop
  * organizer panel (WorkshopAdmin). Update this list to add/refresh models.
  *
- * NOTE: conversations send `temperature` on every request. Anthropic's
- * Opus 4.7/4.8 and Fable models REJECT `temperature` (HTTP 400), so only
- * temperature-compatible Claude models are listed here. Adding those newer
- * models requires updating the Anthropic provider to drop temperature +
- * use adaptive thinking for them first (see src/lib/api/providers/anthropic.ts).
+ * NOTE: conversations send `temperature` on every request, but Anthropic's
+ * Opus 4.7+/Fable models REJECT it (HTTP 400). The Anthropic provider omits
+ * `temperature` for those models (see `supportsTemperature` below), so they
+ * can be listed here. The temperature control stays visible in the UI for
+ * consistency; ModelConfig notes when the selected model ignores it.
  */
 export interface ModelOption {
   id: string;
@@ -29,8 +29,10 @@ export const PROVIDER_MODELS: Record<AIModel, ModelOption[]> = {
     { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', maxTokens: 4096 },
   ],
   claude: [
+    { id: 'claude-opus-4-8', name: 'Claude Opus 4.8 (Latest)', maxTokens: 32000 },
+    { id: 'claude-opus-4-7', name: 'Claude Opus 4.7', maxTokens: 32000 },
     { id: 'claude-opus-4-6', name: 'Claude Opus 4.6', maxTokens: 16000 },
-    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6 (Latest)', maxTokens: 16000 },
+    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6', maxTokens: 16000 },
     { id: 'claude-haiku-4-5', name: 'Claude Haiku 4.5', maxTokens: 16000, workshopRecommended: true },
     { id: 'claude-opus-4-5', name: 'Claude Opus 4.5', maxTokens: 16000 },
     { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', maxTokens: 16000 },
@@ -52,4 +54,17 @@ export const PROVIDER_MODELS: Record<AIModel, ModelOption[]> = {
 /** Provider lookup tolerant of a plain string key (e.g. from form state). */
 export function getProviderModels(provider: string): ModelOption[] {
   return PROVIDER_MODELS[provider as AIModel] ?? [];
+}
+
+/**
+ * Whether a model accepts the `temperature` sampling parameter. Anthropic's
+ * Opus 4.7+ and Fable/Mythos models reject `temperature` (HTTP 400) — they use
+ * adaptive reasoning instead. All other models (incl. older Claude, OpenAI,
+ * Gemini, Mistral) accept it.
+ */
+export function supportsTemperature(modelId: string): boolean {
+  const id = (modelId || '').toLowerCase();
+  if (id.startsWith('claude-opus-4-7') || id.startsWith('claude-opus-4-8')) return false;
+  if (id.startsWith('claude-fable') || id.startsWith('claude-mythos')) return false;
+  return true;
 }
