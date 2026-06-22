@@ -14,12 +14,14 @@ The main things you can configure and control:
 
 **Per bot:**
 - Provider — OpenAI, Anthropic, Google Gemini, or Mistral
-- Model version (e.g. GPT-4o, Claude Sonnet 4.6, Gemini 1.5 Pro, Mistral Large)
+- Model version (e.g. GPT-4.1, Claude Sonnet 4.6, Gemini 2.5 Pro, Mistral Large)
 - System prompt — defines the bot's role, persona, and rules
 - Temperature (0–2) and max output tokens
 - Custom name, bubble colour, and text colour for the conversation view
 
 **Conversation controls:**
+- Which bot starts — choose whether Bot A or Bot B sends the first message
+- Distinct roles (optional) — give the bots an Initiator/Responder split with a scripted opening line, instead of treating them as equals
 - Auto-interact mode — the bots reply to each other automatically up to a set number of messages per bot (max 25 each)
 - Manual mode — click to trigger each response one at a time
 - Response delay — add a fixed pause between replies, with an optional length-based variance that scales with message length
@@ -27,12 +29,15 @@ The main things you can configure and control:
 - Save to history — toggle whether the conversation is written to the database
 
 **Export:**
-- Plain text transcript
-- CSV with per-message metadata (sender, model, temperature, word count, response time in ms)
+- Plain text transcript (tagged with conversation id and per-conversation message number)
+- CSV with per-message metadata (conversation id, message number within the conversation, sender, bot role, model, temperature, word count, response time in ms)
 - Screenshot of the conversation panel
 
 **Data view:**
 Alongside the chat view there is a live data table showing each message with its sender, model version, temperature, word count, and response time. This updates in real time during a conversation.
+
+**Analytics:**
+A statistical comparison of the two bots — turns, word counts, lexical diversity (type-token ratio, Guiraud R), sentence length, and response time. Per-turn metrics are tested for significance two ways: a Welch's two-sample t-test (with Cohen's d) and a non-parametric Mann-Whitney U test, with p-values shown inline so you can see at a glance where the bots differ. Downloadable as a text report.
 
 **Conversation history:**
 Past conversations are saved to a Supabase database per user account. You can browse them, preview the full exchange, and reload any conversation back into the chat panel to continue or re-examine it.
@@ -47,12 +52,14 @@ Past conversations are saved to a Supabase database per user account. You can br
 
 | Provider | Models |
 |----------|--------|
-| OpenAI | GPT-4o, GPT-4o Mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo |
-| Anthropic | Claude Sonnet 4.6, Claude Opus 4.6, Claude Haiku 4.5, Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus |
-| Google | Gemini 1.5 Pro, Gemini 1.5 Flash, Gemini Pro |
+| OpenAI | GPT-4.1, GPT-4.1 Mini, GPT-4o, GPT-4o Mini, GPT-4 Turbo |
+| Anthropic | Claude Opus 4.6, Claude Sonnet 4.6, Claude Haiku 4.5, Claude Opus 4.5, Claude Sonnet 4.5 |
+| Google | Gemini 2.5 Pro, Gemini 2.5 Flash, Gemini 2.5 Flash Lite, Gemini 2.0 Flash |
 | Mistral | Mistral Large, Mistral Medium, Mistral Small, Mistral 7B (open) |
 
-API keys are entered in the bot configuration panel. They are stored in your browser's local storage and cleared automatically when you sign out. Nothing is transmitted to or stored on this server — requests go directly from your browser to each provider's API.
+The selectable models live in one place — [`src/lib/models.ts`](src/lib/models.ts) — so the list stays consistent across the app.
+
+API keys are entered in the bot configuration panel. They are stored encrypted in your account, so they persist across sessions and devices, and a masked preview lets you recognise which key is saved. Conversation requests go directly from your browser to each provider's API — they never pass through this server.
 
 ---
 
