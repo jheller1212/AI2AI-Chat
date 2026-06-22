@@ -112,6 +112,66 @@ export function studentTPValue(t: number, df: number): number {
   return regIncBeta(df / (df + t * t), df / 2, 0.5);
 }
 
+// ── Mann-Whitney U (non-parametric) ─────────────────────────────────────────
+
+/** Standard-normal CDF via an Abramowitz & Stegun erf approximation. */
+function normalCdf(z: number): number {
+  const sign = z < 0 ? -1 : 1;
+  const x = Math.abs(z) / Math.SQRT2;
+  const t = 1 / (1 + 0.3275911 * x);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t) + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t * Math.exp(-x * x);
+  return 0.5 * (1 + sign * y);
+}
+
+export interface MannWhitneyResult {
+  u: number;
+  z: number;
+  p: number;
+}
+
+/**
+ * Mann-Whitney U test (two-tailed) via the normal approximation with tie and
+ * continuity correction. Non-parametric — robust to the skew/outliers common in
+ * per-turn word-count data. Returns null if either sample has < 2 values.
+ */
+export function mannWhitneyU(a: number[], b: number[]): MannWhitneyResult | null {
+  const nA = a.length;
+  const nB = b.length;
+  if (nA < 2 || nB < 2) return null;
+  const N = nA + nB;
+
+  const combined = [
+    ...a.map(v => ({ v, g: 0 })),
+    ...b.map(v => ({ v, g: 1 })),
+  ].sort((x, y) => x.v - y.v);
+
+  // Average ranks (1-based), resolving ties to their mean rank.
+  const ranks = new Array<number>(N);
+  let tieSum = 0; // Σ(t³ − t) over tie groups, for the variance correction
+  let i = 0;
+  while (i < N) {
+    let j = i;
+    while (j + 1 < N && combined[j + 1].v === combined[i].v) j++;
+    const avg = (i + 1 + j + 1) / 2;
+    for (let k = i; k <= j; k++) ranks[k] = avg;
+    const t = j - i + 1;
+    tieSum += t * t * t - t;
+    i = j + 1;
+  }
+
+  let rankA = 0;
+  for (let k = 0; k < N; k++) if (combined[k].g === 0) rankA += ranks[k];
+
+  const u1 = rankA - (nA * (nA + 1)) / 2;
+  const u = Math.min(u1, nA * nB - u1);
+  const mu = (nA * nB) / 2;
+  const sigma = Math.sqrt((nA * nB / 12) * ((N + 1) - tieSum / (N * (N - 1))));
+  if (sigma === 0) return { u, z: 0, p: 1 };
+  const z = (Math.abs(u - mu) - 0.5) / sigma; // continuity correction
+  const p = Math.min(1, Math.max(0, 2 * (1 - normalCdf(Math.abs(z)))));
+  return { u, z, p };
+}
+
 // ── Welch's two-sample t-test ───────────────────────────────────────────────
 
 export interface TTestResult {
@@ -126,6 +186,8 @@ export interface TTestResult {
   df: number;
   p: number;
   cohenD: number;
+  /** Non-parametric Mann-Whitney U test on the same samples (null if undefined). */
+  mannWhitney: MannWhitneyResult | null;
 }
 
 export function welchTTest(metric: string, a: number[], b: number[]): TTestResult | null {
@@ -150,7 +212,7 @@ export function welchTTest(metric: string, a: number[], b: number[]): TTestResul
   const pooledSd = Math.sqrt(((nA - 1) * vA + (nB - 1) * vB) / (nA + nB - 2));
   const cohenD = pooledSd === 0 ? 0 : (mA - mB) / pooledSd;
 
-  return { metric, meanA: mA, meanB: mB, sdA: Math.sqrt(vA), sdB: Math.sqrt(vB), nA, nB, t, df, p, cohenD };
+  return { metric, meanA: mA, meanB: mB, sdA: Math.sqrt(vA), sdB: Math.sqrt(vB), nA, nB, t, df, p, cohenD, mannWhitney: mannWhitneyU(a, b) };
 }
 
 // ── Distinctive words (weighted log-odds, uninformative Dirichlet prior) ─────

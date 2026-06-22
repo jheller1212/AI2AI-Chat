@@ -47,13 +47,19 @@ function buildTextReport(
   ];
   for (const r of rows) lines.push(`  ${r[0].padEnd(32)} ${r[1].padEnd(20)} ${r[2]}`);
   lines.push('');
-  lines.push("WELCH'S TWO-SAMPLE t-TESTS");
+  lines.push('SIGNIFICANCE TESTS (per-turn metrics)');
   for (const t of tests) {
     const sig = significanceLabel(t.p);
     lines.push(`  ${t.metric}`);
     lines.push(`    ${name1}: M=${fmt(t.meanA)} (SD ${fmt(t.sdA)}), ${name2}: M=${fmt(t.meanB)} (SD ${fmt(t.sdB)})`);
-    lines.push(`    t(${fmt(t.df)})=${fmt(t.t, 2)}, ${sig.text}, Cohen's d=${fmt(t.cohenD, 2)} (${effectSizeLabel(t.cohenD)})`);
+    lines.push(`    Welch t(${fmt(t.df)})=${fmt(t.t, 2)}, ${sig.text}, Cohen's d=${fmt(t.cohenD, 2)} (${effectSizeLabel(t.cohenD)})`);
+    if (t.mannWhitney) {
+      const mwSig = significanceLabel(t.mannWhitney.p);
+      lines.push(`    Mann-Whitney U=${fmt(t.mannWhitney.u, 1)}, z=${fmt(t.mannWhitney.z, 2)}, ${mwSig.text}`);
+    }
   }
+  lines.push('  Corpus-level metrics (total/unique words, type-token ratio, Guiraud R)');
+  lines.push('  are a single value per bot and are not significance-tested.');
   lines.push('');
   lines.push('DISTINCTIVE WORDS (weighted log-odds z)');
   lines.push(`  ${name1}: ${distinctive.botA.map(d => `${d.word} (${d.z.toFixed(1)})`).join(', ') || '—'}`);
@@ -64,12 +70,37 @@ function buildTextReport(
   return lines.join('\n');
 }
 
-function StatRow({ label, icon, v1, v2 }: { label: string; icon?: React.ReactNode; v1: string; v2: string }) {
+/** Compact inline significance line: Welch t + Mann-Whitney U. */
+function SigInline({ test }: { test: TTestResult }) {
+  const tSig = significanceLabel(test.p);
+  const mw = test.mannWhitney;
+  const mwSig = mw ? significanceLabel(mw.p) : null;
+  const anyStars = !!tSig.stars || !!mwSig?.stars;
   return (
-    <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center py-1.5 border-b border-gray-100 dark:border-gray-700/60 last:border-0">
-      <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1.5">{icon}{label}</span>
-      <span className="text-sm font-semibold tabular-nums text-right w-24" style={{ color: COLOR1 }}>{v1}</span>
-      <span className="text-sm font-semibold tabular-nums text-right w-24" style={{ color: COLOR2 }}>{v2}</span>
+    <p className={`text-[10px] tabular-nums mt-0.5 ${anyStars ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'}`}>
+      Welch t {tSig.text} {tSig.stars}
+      {mwSig && <> · Mann-Whitney {mwSig.text} {mwSig.stars}</>}
+    </p>
+  );
+}
+
+function StatRow({ label, icon, v1, v2, test, corpus }: {
+  label: string;
+  icon?: React.ReactNode;
+  v1: string;
+  v2: string;
+  test?: TTestResult | null;
+  corpus?: boolean;
+}) {
+  return (
+    <div className="py-1.5 border-b border-gray-100 dark:border-gray-700/60 last:border-0">
+      <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
+        <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1.5">{icon}{label}</span>
+        <span className="text-sm font-semibold tabular-nums text-right w-24" style={{ color: COLOR1 }}>{v1}</span>
+        <span className="text-sm font-semibold tabular-nums text-right w-24" style={{ color: COLOR2 }}>{v2}</span>
+      </div>
+      {test && <SigInline test={test} />}
+      {corpus && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5" title="A single value per bot — there is no per-turn distribution to run a two-sample test on.">— corpus-level (no per-turn test)</p>}
     </div>
   );
 }
@@ -80,6 +111,7 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
   const c2 = textColor2 !== '#064E3B' ? textColor2 : COLOR2;
 
   const { bot1, bot2, tests, distinctive, insufficient } = report;
+  const testByMetric = useMemo(() => new Map(tests.map(t => [t.metric, t])), [tests]);
 
   if (bot1.turns === 0 && bot2.turns === 0) {
     return (
@@ -142,19 +174,20 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
           <span className="text-xs font-semibold text-right w-24 truncate" style={{ color: c2 }} title={botName2}>{botName2}</span>
         </div>
         <StatRow label="Turns" icon={<MessageSquare className="w-3 h-3 text-gray-400" />} v1={fmtInt(bot1.turns)} v2={fmtInt(bot2.turns)} />
-        <StatRow label="Total words" icon={<Hash className="w-3 h-3 text-gray-400" />} v1={fmtInt(bot1.totalWords)} v2={fmtInt(bot2.totalWords)} />
-        <StatRow label="Mean words / turn" v1={`${fmt(bot1.meanWordsPerTurn)}`} v2={`${fmt(bot2.meanWordsPerTurn)}`} />
+        <StatRow label="Total words" icon={<Hash className="w-3 h-3 text-gray-400" />} v1={fmtInt(bot1.totalWords)} v2={fmtInt(bot2.totalWords)} corpus />
+        <StatRow label="Mean words / turn" v1={`${fmt(bot1.meanWordsPerTurn)}`} v2={`${fmt(bot2.meanWordsPerTurn)}`} test={testByMetric.get('Words per turn')} />
         <StatRow label="± SD" v1={fmt(bot1.sdWordsPerTurn)} v2={fmt(bot2.sdWordsPerTurn)} />
-        <StatRow label="Unique words" v1={fmtInt(bot1.uniqueWords)} v2={fmtInt(bot2.uniqueWords)} />
-        <StatRow label="Type-token ratio" v1={fmt(bot1.typeTokenRatio, 3)} v2={fmt(bot2.typeTokenRatio, 3)} />
-        <StatRow label="Lexical diversity (Guiraud R)" v1={fmt(bot1.guiraudR, 2)} v2={fmt(bot2.guiraudR, 2)} />
-        <StatRow label="Mean sentence length (words)" v1={fmt(bot1.meanSentenceLength)} v2={fmt(bot2.meanSentenceLength)} />
+        <StatRow label="Unique words" v1={fmtInt(bot1.uniqueWords)} v2={fmtInt(bot2.uniqueWords)} corpus />
+        <StatRow label="Type-token ratio" v1={fmt(bot1.typeTokenRatio, 3)} v2={fmt(bot2.typeTokenRatio, 3)} corpus />
+        <StatRow label="Lexical diversity (Guiraud R)" v1={fmt(bot1.guiraudR, 2)} v2={fmt(bot2.guiraudR, 2)} corpus />
+        <StatRow label="Mean sentence length (words)" v1={fmt(bot1.meanSentenceLength)} v2={fmt(bot2.meanSentenceLength)} test={testByMetric.get('Sentence length (words)')} />
         {(bot1.hasResponseTimes || bot2.hasResponseTimes) && (
           <StatRow
             label="Total response time"
             icon={<Clock className="w-3 h-3 text-gray-400" />}
             v1={bot1.hasResponseTimes ? `${fmt(bot1.totalResponseMs / 1000)}s` : '—'}
             v2={bot2.hasResponseTimes ? `${fmt(bot2.totalResponseMs / 1000)}s` : '—'}
+            test={testByMetric.get('Response time (s)')}
           />
         )}
       </section>
@@ -180,11 +213,19 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
                     </span>
                   </div>
                   <div className="text-gray-500 dark:text-gray-400 tabular-nums mt-0.5">
-                    t({fmt(t.df)}) = {fmt(t.t, 2)}, Cohen&apos;s d = {fmt(t.cohenD, 2)} ({effectSizeLabel(t.cohenD)})
+                    Welch t({fmt(t.df)}) = {fmt(t.t, 2)}, {sig.text} {sig.stars}, Cohen&apos;s d = {fmt(t.cohenD, 2)} ({effectSizeLabel(t.cohenD)})
                     {sig.stars && higher && (
                       <> — <span style={{ color: higher === botName1 ? c1 : c2 }} className="font-medium">{higher}</span> higher</>
                     )}
                   </div>
+                  {t.mannWhitney && (() => {
+                    const mwSig = significanceLabel(t.mannWhitney.p);
+                    return (
+                      <div className="text-gray-500 dark:text-gray-400 tabular-nums mt-0.5">
+                        Mann-Whitney U = {fmt(t.mannWhitney.u, 1)}, z = {fmt(t.mannWhitney.z, 2)}, {mwSig.text} {mwSig.stars}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -227,10 +268,12 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
       {/* Methodology note */}
       <p className="text-[11px] text-gray-400 dark:text-gray-500 flex items-start gap-1.5 leading-relaxed">
         <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-        Welch&apos;s two-sample t-tests treat each AI turn as one observation. Turns within a
-        conversation are sequential and not strictly independent, so p-values are indicative rather
-        than confirmatory. Distinctive words use weighted log-odds (Monroe et al., 2008), excluding
-        common function words.
+        Each per-turn metric is tested two ways: Welch&apos;s two-sample t-test (parametric) and the
+        Mann-Whitney U test (non-parametric, robust to skew). Each AI turn is one observation; turns
+        within a conversation are sequential and not strictly independent, so p-values are indicative
+        rather than confirmatory. Corpus-level metrics (type-token ratio, Guiraud R, total/unique
+        words) are a single value per bot and cannot be two-sample tested. Distinctive words use
+        weighted log-odds (Monroe et al., 2008), excluding common function words.
       </p>
     </div>
   );
