@@ -7,11 +7,49 @@
     <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#F9F9FB" />
-    <meta name="description" content="AI2AI Chat — watch two AI models converse in real time" />
+    <title>AI2AI Chat — Watch Two AI Models Converse</title>
+    <meta name="description" content="A research tool to run and analyze conversations between two AI models — OpenAI, Anthropic, Gemini, and Mistral — with live transcripts, statistical metrics, and CSV export. Built at Maastricht University." />
+    <meta name="keywords" content="AI to AI conversation, AI dialogue, LLM comparison, GPT, Claude, Gemini, Mistral, AI research tool, conversation analytics, multi-agent" />
+    <meta name="author" content="Jonas Heller, Maastricht University" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://ai2aichat.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AI2AI Chat" />
+    <meta property="og:url" content="https://ai2aichat.com/" />
+    <meta property="og:title" content="AI2AI Chat — Watch Two AI Models Converse" />
+    <meta property="og:description" content="Run and analyze conversations between two AI models (OpenAI, Anthropic, Gemini, Mistral) with live transcripts, statistical metrics, and CSV export." />
+    <!-- TODO: drop a dedicated 1200x630 og-image.png in /public, point og:image + twitter:image at it, and switch twitter:card to summary_large_image -->
+    <meta property="og:image" content="https://ai2aichat.com/apple-touch-icon.png" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="AI2AI Chat — Watch Two AI Models Converse" />
+    <meta name="twitter:description" content="Run and analyze conversations between two AI models with live transcripts, statistical metrics, and CSV export." />
+    <meta name="twitter:image" content="https://ai2aichat.com/apple-touch-icon.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "AI2AI Chat",
+        "url": "https://ai2aichat.com/",
+        "description": "A research tool to run and analyze conversations between two AI models — OpenAI, Anthropic, Gemini, and Mistral — with live transcripts, statistical metrics, and CSV export.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Web browser",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "creator": {
+          "@type": "Person",
+          "name": "Jonas Heller",
+          "affiliation": { "@type": "Organization", "name": "Maastricht University" }
+        }
+      }
+    </script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
-    <title>AI2AI Chat</title>
   </head>
   <body>
     <div id="root"></div>
