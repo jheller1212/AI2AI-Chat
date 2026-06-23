@@ -50,6 +50,9 @@ export function ResearchInterface({
   // --- View routing ---
   const [currentView, setCurrentView] = useState<AppView>(() => {
     if (workshopData || sharedConfig) return 'setup';
+    // The onboarding tour spotlights the bot-config panels, which only exist on
+    // the Setup view — land there when it will auto-show (Rewatch does the same).
+    if (shouldAutoShowTour()) return 'setup';
     return 'dashboard';
   });
   const [showUserSettings, setShowUserSettings] = useState(false);
