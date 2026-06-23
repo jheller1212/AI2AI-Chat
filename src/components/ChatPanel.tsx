@@ -400,7 +400,7 @@ export function ChatPanel({
 
         {/* Scenario prompt — hidden in asymmetric mode when an opening message is configured */}
         {!(botMode === 'asymmetric' && openingMessage.trim()) && (
-          <div data-tour="chat-input" className="space-y-1.5">
+          <div data-tour="chat-input-live" className="space-y-1.5">
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Scenario Prompt</span>
               <InfoTooltip text="Set the stage for the AI conversation. Describe a scenario, pose a question, or provide context that both bots will use as their starting point. Leave blank to let the system prompts guide the conversation from the start." />
