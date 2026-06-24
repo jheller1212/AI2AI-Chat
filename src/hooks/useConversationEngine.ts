@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { generateResponse } from '../lib/api/conversation';
+import type { WaitStatus } from '../lib/api/conversation';
 import { supabase } from '../lib/supabase';
 import { trackEvent } from '../lib/analytics';
 import { APIError } from '../lib/api/types';
@@ -50,6 +51,15 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
   const [interactionCount, setInteractionCount] = useState(0);
   const [repetitionCurrent, setRepetitionCurrent] = useState(0);
   const [stoppingTriggers, setStoppingTriggers] = useState<Record<string, string>>({});
+  // Human-readable "waiting for capacity" message shown while a turn is queued
+  // behind the per-browser request gate or sleeping through a rate-limit retry.
+  const [waitStatus, setWaitStatus] = useState<string | null>(null);
+
+  const describeWait = (w: WaitStatus): string | null => {
+    if (!w) return null;
+    if (w.kind === 'queued') return 'Many requests at once — your turn is queued…';
+    return `High demand — the API is rate-limiting. Retrying in ${Math.max(1, Math.round(w.retryInMs / 1000))}s…`;
+  };
 
   // Refs for latest values in async callbacks
   const autoInteractRef = useRef(opts.autoInteract);
@@ -152,8 +162,12 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
 
       const ac = new AbortController();
       abortControllerRef.current = ac;
-      const response = await generateResponse(config, remappedMessages, ac.signal);
+      const response = await generateResponse(
+        config, remappedMessages, ac.signal,
+        (w) => setWaitStatus(describeWait(w)),
+      );
       abortControllerRef.current = null;
+      setWaitStatus(null);
 
       if (isStoppedRef.current) { setIsLoading(false); return; }
 
@@ -217,6 +231,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       // If the user pressed Stop after the response arrived, fall through without
       // finalizing — handleStop already reset the loading state.
     } catch (error) {
+      setWaitStatus(null);
       // Stop button aborts in-flight requests and retry waits — not an error to surface
       if (error instanceof Error && error.name === 'AbortError' && isStoppedRef.current) {
         setIsLoading(false);
@@ -459,6 +474,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    setWaitStatus(null);
     setIsLoading(false);
   };
 
@@ -479,6 +495,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
     setIsLoading(false);
     setErrors([]);
     setStoppingTriggers({});
+    setWaitStatus(null);
     initialChainRef.current = null;
     isStoppedRef.current = false;
   };
@@ -486,6 +503,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
   return {
     messages, setMessages,
     isLoading,
+    waitStatus,
     errors, setErrors,
     interactionCount,
     repetitionCurrent,

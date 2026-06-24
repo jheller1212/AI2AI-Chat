@@ -15,6 +15,7 @@ const messageEntrance = {
 interface ConversationDisplayProps {
   messages: Message[];
   isLoading?: boolean;
+  waitStatus?: string | null;
   botName1: string;
   botName2: string;
   bubbleColor1: string;
@@ -48,6 +49,7 @@ function TokenBadge({ wordCount }: { wordCount: number }) {
 export function ConversationDisplay({
   messages,
   isLoading = false,
+  waitStatus = null,
   botName1,
   botName2,
   bubbleColor1,
@@ -173,7 +175,9 @@ export function ConversationDisplay({
             <span className="typing-dot w-2 h-2 bg-sky-400 rounded-full" style={{ animation: 'typing-bounce 1.2s ease-in-out infinite', animationDelay: '160ms' }} />
             <span className="typing-dot w-2 h-2 bg-sky-400 rounded-full" style={{ animation: 'typing-bounce 1.2s ease-in-out infinite', animationDelay: '320ms' }} />
           </div>
-          Generating…
+          {waitStatus
+            ? <span className="text-amber-500 dark:text-amber-400">{waitStatus}</span>
+            : 'Generating…'}
         </motion.div>
       )}
 
