@@ -273,6 +273,15 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
     localConversationId: string,
     bot1StartsFirst: boolean,
   ) => {
+    // De-burst synchronized starts: when many participants click Start on the
+    // same cue (e.g. instructor says "go"), a short random delay before the
+    // first turn fans the initial requests out across the shared key instead of
+    // all hitting on the same beat. Only the opening turn of a run is staggered.
+    if (repetitionIndex === 0) {
+      await new Promise<void>(resolve => setTimeout(resolve, Math.round(Math.random() * 1200)));
+      if (isStoppedRef.current) { setIsLoading(false); return; }
+    }
+
     const dbConversationId = await createConversationRecord(userMsg, localConversationId);
 
     trackEvent(opts.userId, 'conversation_started', {
