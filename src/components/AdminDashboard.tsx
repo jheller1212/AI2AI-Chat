@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   X, Users, UserCheck, UserPlus, MessageSquare, MessagesSquare, FlaskConical,
   GraduationCap, BarChart3, ShieldCheck, Trash2, Plus, AlertTriangle, Layers, Download, Loader2,
+  Activity, RefreshCw,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -210,6 +211,9 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
                 />
               </div>
 
+              {/* Live usage (per-minute spike monitor) */}
+              <LiveUsage />
+
               {/* Timeline */}
               <Timeline data={stats.timeline} />
 
@@ -303,6 +307,140 @@ function BarRow({ label, count, max }: { label: string; count: number; max: numb
         <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${Math.max((count / max) * 100, 2)}%` }} />
       </div>
       <span className="text-gray-700 dark:text-gray-300 font-medium w-10 text-right text-xs">{count}</span>
+    </div>
+  );
+}
+
+interface LiveUsageData {
+  windowMinutes: number;
+  series: Array<{ minute: string; calls: number; errors: number }>;
+  totalCalls: number;
+  totalErrors: number;
+  peakCallsPerMin: number;
+  generatedAt: string;
+}
+
+/** Per-minute API-call & error volume so an organizer can watch for load spikes
+ *  during a workshop. Auto-refreshes every 20s. Each AI turn = one provider call. */
+function LiveUsage() {
+  const [data, setData] = useState<LiveUsageData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [auto, setAuto] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchUsage = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const result = await callEdge({ action: 'live-usage', windowMinutes: 120 });
+      setData(result as LiveUsageData);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load usage');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUsage();
+    if (!auto) return;
+    const id = setInterval(fetchUsage, 20_000);
+    return () => clearInterval(id);
+  }, [fetchUsage, auto]);
+
+  const series = data?.series ?? [];
+  const peak = Math.max(data?.peakCallsPerMin ?? 0, 1);
+  // Show the most recent ~90 minutes so bars stay readable.
+  const shown = series.slice(-90);
+  const fmtClock = (minute: string) => {
+    const d = new Date(`${minute}:00Z`);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  const updated = data?.generatedAt
+    ? new Date(data.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    : null;
+
+  return (
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800/40">
+      <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-1.5">
+          <Activity className="w-4 h-4 text-indigo-500" />
+          Live API Usage
+          <span className="text-xs font-normal text-gray-400 dark:text-gray-500">· per minute, last 90 min</span>
+        </h3>
+        <div className="flex items-center gap-2">
+          {updated && <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">updated {updated}</span>}
+          <button
+            onClick={() => setAuto(a => !a)}
+            className={`text-[11px] px-2 py-1 rounded-md border transition-colors ${
+              auto
+                ? 'border-emerald-300 dark:border-emerald-600 text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20'
+                : 'border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400'
+            }`}
+          >
+            {auto ? 'Auto-refresh on' : 'Auto-refresh off'}
+          </button>
+          <button
+            onClick={fetchUsage}
+            disabled={refreshing}
+            className="p-1 rounded-md border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
+            title="Refresh now"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-gray-400 py-6 justify-center">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading usage…
+        </div>
+      ) : error ? (
+        <p className="text-xs text-red-500 py-4">{error}</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <StatCard icon={<Activity className="w-4 h-4" />} label="Peak Calls / min" value={data?.peakCallsPerMin ?? 0} sub="busiest minute" />
+            <StatCard icon={<MessageSquare className="w-4 h-4" />} label="Calls (2h)" value={data?.totalCalls ?? 0} sub="AI turns sent" />
+            <StatCard
+              icon={<AlertTriangle className="w-4 h-4" />}
+              label="Errors (2h)"
+              value={data?.totalErrors ?? 0}
+              tone={(data?.totalErrors ?? 0) > 0 ? 'warn' : 'default'}
+              sub="incl. rate limits"
+            />
+          </div>
+
+          {shown.every(s => s.calls === 0 && s.errors === 0) ? (
+            <p className="text-xs text-gray-400 dark:text-gray-500 italic py-4 text-center">No API calls in the last 90 minutes.</p>
+          ) : (
+            <div className="flex items-end gap-px h-20" role="img" aria-label="Per-minute API call volume">
+              {shown.map((s) => {
+                const h = Math.round((s.calls / peak) * 100);
+                const hasErr = s.errors > 0;
+                return (
+                  <div
+                    key={s.minute}
+                    className="flex-1 min-w-0 h-full flex items-end"
+                    title={`${fmtClock(s.minute)} — ${s.calls} call${s.calls === 1 ? '' : 's'}${hasErr ? `, ${s.errors} error${s.errors === 1 ? '' : 's'}` : ''}`}
+                  >
+                    <div
+                      className={`w-full rounded-t-sm ${hasErr ? 'bg-red-500' : 'bg-indigo-500'} ${s.calls === 0 && hasErr ? 'min-h-[3px]' : ''}`}
+                      style={{ height: `${s.calls === 0 ? (hasErr ? 4 : 0) : Math.max(h, 4)}%` }}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <div className="flex items-center gap-4 mt-2 text-[11px] text-gray-400 dark:text-gray-500">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-indigo-500 inline-block" /> API calls</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-red-500 inline-block" /> minute had errors (rate limit / failure)</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
