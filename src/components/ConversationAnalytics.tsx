@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { BarChart3, Download, MessageSquare, Hash, Clock, Sparkles, Info } from 'lucide-react';
+import { InfoTooltip } from './InfoTooltip';
 import type { Message } from '../types';
 import {
   buildConversationReport,
@@ -84,18 +85,19 @@ function SigInline({ test }: { test: TTestResult }) {
   );
 }
 
-function StatRow({ label, icon, v1, v2, test, corpus }: {
+function StatRow({ label, icon, v1, v2, test, corpus, tooltip }: {
   label: string;
   icon?: React.ReactNode;
   v1: string;
   v2: string;
   test?: TTestResult | null;
   corpus?: boolean;
+  tooltip?: string;
 }) {
   return (
     <div className="py-1.5 border-b border-gray-100 dark:border-gray-700/60 last:border-0">
       <div className="grid grid-cols-[1fr_auto_auto] gap-3 items-center">
-        <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1.5">{icon}{label}</span>
+        <span className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1.5">{icon}{label}{tooltip && <InfoTooltip text={tooltip} />}</span>
         <span className="text-sm font-semibold tabular-nums text-right w-24" style={{ color: COLOR1 }}>{v1}</span>
         <span className="text-sm font-semibold tabular-nums text-right w-24" style={{ color: COLOR2 }}>{v2}</span>
       </div>
@@ -173,14 +175,22 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
           <span className="text-xs font-semibold text-right w-24 truncate" style={{ color: c1 }} title={botName1}>{botName1}</span>
           <span className="text-xs font-semibold text-right w-24 truncate" style={{ color: c2 }} title={botName2}>{botName2}</span>
         </div>
-        <StatRow label="Turns" icon={<MessageSquare className="w-3 h-3 text-gray-400" />} v1={fmtInt(bot1.turns)} v2={fmtInt(bot2.turns)} />
-        <StatRow label="Total words" icon={<Hash className="w-3 h-3 text-gray-400" />} v1={fmtInt(bot1.totalWords)} v2={fmtInt(bot2.totalWords)} corpus />
-        <StatRow label="Mean words / turn" v1={`${fmt(bot1.meanWordsPerTurn)}`} v2={`${fmt(bot2.meanWordsPerTurn)}`} test={testByMetric.get('Words per turn')} />
-        <StatRow label="± SD" v1={fmt(bot1.sdWordsPerTurn)} v2={fmt(bot2.sdWordsPerTurn)} />
-        <StatRow label="Unique words" v1={fmtInt(bot1.uniqueWords)} v2={fmtInt(bot2.uniqueWords)} corpus />
-        <StatRow label="Type-token ratio" v1={fmt(bot1.typeTokenRatio, 3)} v2={fmt(bot2.typeTokenRatio, 3)} corpus />
-        <StatRow label="Lexical diversity (Guiraud R)" v1={fmt(bot1.guiraudR, 2)} v2={fmt(bot2.guiraudR, 2)} corpus />
-        <StatRow label="Mean sentence length (words)" v1={fmt(bot1.meanSentenceLength)} v2={fmt(bot2.meanSentenceLength)} test={testByMetric.get('Sentence length (words)')} />
+        <StatRow label="Turns" icon={<MessageSquare className="w-3 h-3 text-gray-400" />} v1={fmtInt(bot1.turns)} v2={fmtInt(bot2.turns)}
+          tooltip="How many times this AI spoke. Good for a quick check that both bots took part roughly equally." />
+        <StatRow label="Total words" icon={<Hash className="w-3 h-3 text-gray-400" />} v1={fmtInt(bot1.totalWords)} v2={fmtInt(bot2.totalWords)} corpus
+          tooltip="Total words this AI produced across the whole conversation. A simple measure of how talkative or verbose it was." />
+        <StatRow label="Mean words / turn" v1={`${fmt(bot1.meanWordsPerTurn)}`} v2={`${fmt(bot2.meanWordsPerTurn)}`} test={testByMetric.get('Words per turn')}
+          tooltip="Average words per message. Higher = longer, more detailed replies; lower = shorter, more concise ones. Good for comparing how wordy each bot is." />
+        <StatRow label="± SD" v1={fmt(bot1.sdWordsPerTurn)} v2={fmt(bot2.sdWordsPerTurn)}
+          tooltip="Standard deviation of words per turn — how much the reply length jumped around. Small = consistent length; large = a mix of very short and very long replies." />
+        <StatRow label="Unique words" v1={fmtInt(bot1.uniqueWords)} v2={fmtInt(bot2.uniqueWords)} corpus
+          tooltip="The number of different words used (vocabulary size). More unique words suggests a broader vocabulary." />
+        <StatRow label="Type-token ratio" v1={fmt(bot1.typeTokenRatio, 3)} v2={fmt(bot2.typeTokenRatio, 3)} corpus
+          tooltip="Unique words ÷ total words. Closer to 1 = more varied wording; closer to 0 = more repetition. Caveat: longer texts naturally score lower, so compare with care." />
+        <StatRow label="Lexical diversity (Guiraud R)" v1={fmt(bot1.guiraudR, 2)} v2={fmt(bot2.guiraudR, 2)} corpus
+          tooltip="A length-adjusted vocabulary-richness score (unique words ÷ √total words). Fairer than type-token ratio when the bots wrote different amounts. Higher = richer, more varied vocabulary." />
+        <StatRow label="Mean sentence length (words)" v1={fmt(bot1.meanSentenceLength)} v2={fmt(bot2.meanSentenceLength)} test={testByMetric.get('Sentence length (words)')}
+          tooltip="Average words per sentence. Higher suggests denser, more complex writing; lower suggests punchier, simpler sentences." />
         {(bot1.hasResponseTimes || bot2.hasResponseTimes) && (
           <StatRow
             label="Total response time"
@@ -188,13 +198,17 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
             v1={bot1.hasResponseTimes ? `${fmt(bot1.totalResponseMs / 1000)}s` : '—'}
             v2={bot2.hasResponseTimes ? `${fmt(bot2.totalResponseMs / 1000)}s` : '—'}
             test={testByMetric.get('Response time (s)')}
+            tooltip="Combined time this AI took to generate its replies. Good for comparing the raw speed of the two models or providers."
           />
         )}
       </section>
 
       {/* Significance tests */}
       <section className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">Are the differences significant?</h4>
+        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2 flex items-center gap-1.5">
+          Are the differences significant?
+          <InfoTooltip text="Tells you whether a gap between the two bots is real or could just be random chance. A low p-value (shown with ★ stars) means the difference is unlikely to be a fluke. Cohen's d is how BIG the gap is (0.2 small, 0.5 medium, 0.8+ large). Welch's t and Mann-Whitney are two ways of testing the same thing — agreement between them makes the result more trustworthy." />
+        </h4>
         {insufficient ? (
           <p className="text-xs text-gray-500 dark:text-gray-400">
             Each AI needs at least 2 turns to run a t-test. Let the conversation run longer for a statistical comparison.
@@ -239,6 +253,7 @@ export function ConversationAnalytics({ messages, botName1, botName2, textColor1
           <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             Distinctive words
+            <InfoTooltip text="The words each bot used far more than the other — its verbal fingerprint. Good for spotting how the two personalities or system prompts shaped their language. Common filler words (the, and, is…) are filtered out." />
           </h4>
           <div className="grid grid-cols-2 gap-4">
             {[{ name: botName1, color: c1, words: distinctive.botA }, { name: botName2, color: c2, words: distinctive.botB }].map((col) => (
