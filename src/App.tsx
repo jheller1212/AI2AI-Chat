@@ -9,12 +9,14 @@ const ResearchInterface = lazy(() => import('./components/ResearchInterface').th
 const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy').then(m => ({ default: m.PrivacyPolicy })));
 const TermsOfUse = lazy(() => import('./components/TermsOfUse').then(m => ({ default: m.TermsOfUse })));
-import { clearVault, loadVault, loadVaultFromServer, syncVaultToServer } from './lib/apiKeyVault';
+import { clearVault, loadVault, loadVaultFromServer, syncVaultToServer, saveVault } from './lib/apiKeyVault';
+import type { ProviderVault } from './lib/apiKeyVault';
 
 export interface WorkshopData {
   name: string;
   welcome: string;
   provider: string;
+  apiKey?: string | null;
   hasKey: boolean;
   scenario: { botAPrompt: string; botBPrompt: string; sharedPrompt: string; stopKeywords: string; botMode: 'symmetric' | 'asymmetric'; startingBot?: 'a' | 'b' } | null;
   config: Record<string, unknown> | null;
@@ -130,6 +132,17 @@ function App() {
       if (error || !data || data.error) return;
 
       setWorkshopData(data as WorkshopData);
+
+      // Preload the workshop's API key into the participant's vault so the link
+      // "just works". The key is a dedicated, spend-capped workshop key.
+      const wd = data as WorkshopData;
+      if (wd.apiKey && wd.provider) {
+        const vault = loadVault();
+        const provider = wd.provider as keyof ProviderVault;
+        if (provider in vault) {
+          saveVault({ ...vault, [provider]: wd.apiKey });
+        }
+      }
     } catch { /* non-blocking */ }
   };
 
