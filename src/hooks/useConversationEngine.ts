@@ -231,12 +231,14 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       let msg = error instanceof Error
         ? (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message)
         : 'An unknown error occurred';
+      const providerNames: Record<string, string> = {
+        gpt4: 'OpenAI', claude: 'Anthropic', gemini: 'Google Gemini', mistral: 'Mistral',
+      };
+      const who = providerNames[config.model] || 'provider';
       if (error instanceof APIError && (error.status === 401 || error.status === 403)) {
-        const providerNames: Record<string, string> = {
-          gpt4: 'OpenAI', claude: 'Anthropic', gemini: 'Google Gemini', mistral: 'Mistral',
-        };
-        const who = providerNames[config.model] || 'provider';
         msg = `The ${who} API key looks invalid or unauthorized (HTTP ${error.status}). Please double-check the key — it may be mistyped, expired, or lack access to this model — then update it and start again.`;
+      } else if (error instanceof APIError && error.status === 429) {
+        msg = `The ${who} API is rate-limiting requests (HTTP 429) — too many were sent too quickly. Wait a moment, then start again. In a workshop where many people share one API key this is common: lower "messages per bot" or add a response delay in Advanced Settings to ease the load.`;
       } else if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
         msg += ' — Troubleshooting: (1) Is your API key copied correctly and complete? (2) Is the key still active and not expired? (3) Does your API account have available credits? (4) Check your browser console for CORS errors.';
       }
