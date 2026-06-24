@@ -459,6 +459,70 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true }, 200, corsHeaders);
     }
 
+    // === LIVE-USAGE: organizers only — per-minute API-call & error volume ===
+    // Lets an organizer watch for load spikes during a workshop. Each assistant
+    // message is one provider call; provider_error events flag rate-limit/failures.
+    if (action === 'live-usage') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const { windowMinutes } = body as { windowMinutes?: number };
+      const win = Math.min(Math.max(Math.round(windowMinutes ?? 120), 10), 360); // 10min–6h
+      const since = new Date(Date.now() - win * 60 * 1000);
+      const sinceIso = since.toISOString();
+
+      const { data: msgs } = await admin
+        .from('messages')
+        .select('created_at, role')
+        .gte('created_at', sinceIso)
+        .limit(20000);
+      const { data: evs } = await admin
+        .from('events')
+        .select('created_at')
+        .eq('event_type', 'provider_error')
+        .gte('created_at', sinceIso)
+        .limit(20000);
+
+      // Bucket per minute (UTC). 'YYYY-MM-DDTHH:MM' is a stable per-minute key.
+      const callsByMin: Record<string, number> = {};
+      const errorsByMin: Record<string, number> = {};
+      let totalCalls = 0;
+      let totalErrors = 0;
+      (msgs || []).forEach((m: { created_at: string; role: string }) => {
+        if (m.role === 'user') return; // count only AI turns = provider calls
+        const minute = (m.created_at || '').slice(0, 16);
+        if (!minute) return;
+        callsByMin[minute] = (callsByMin[minute] || 0) + 1;
+        totalCalls++;
+      });
+      (evs || []).forEach((e: { created_at: string }) => {
+        const minute = (e.created_at || '').slice(0, 16);
+        if (!minute) return;
+        errorsByMin[minute] = (errorsByMin[minute] || 0) + 1;
+        totalErrors++;
+      });
+
+      // Dense, gap-filled minute series so idle minutes show as zero.
+      const series: Array<{ minute: string; calls: number; errors: number }> = [];
+      const startMs = Math.floor(since.getTime() / 60000) * 60000;
+      const nowMs = Math.floor(Date.now() / 60000) * 60000;
+      for (let t = startMs; t <= nowMs; t += 60000) {
+        const minute = new Date(t).toISOString().slice(0, 16);
+        series.push({ minute, calls: callsByMin[minute] || 0, errors: errorsByMin[minute] || 0 });
+      }
+      const peakCallsPerMin = series.reduce((mx, s) => Math.max(mx, s.calls), 0);
+
+      return jsonResponse({
+        windowMinutes: win,
+        series,
+        totalCalls,
+        totalErrors,
+        peakCallsPerMin,
+        generatedAt: new Date().toISOString(),
+      }, 200, corsHeaders);
+    }
+
     // === ADMIN-STATS: organizers only — analytics dashboard ===
     if (action === 'admin-stats') {
       if (!await isOrganizer(admin, user.email || '')) {
