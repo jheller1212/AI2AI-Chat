@@ -156,10 +156,24 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Workshop not found' }, 404, corsHeaders);
       }
 
+      // Decrypt the workshop key so it can be preloaded into the participant's
+      // vault on join. NOTE: this returns the organizer's key to the browser —
+      // only use a dedicated, spend-capped key per workshop and revoke it after.
+      let apiKey: string | null = null;
+      if (data.api_key) {
+        const cryptoKey = await deriveKey(encryptionSecret, `workshop-${data.id}`);
+        try {
+          apiKey = await decrypt(cryptoKey, data.api_key);
+        } catch {
+          return jsonResponse({ error: 'Failed to decrypt workshop key' }, 500, corsHeaders);
+        }
+      }
+
       return jsonResponse({
         name: data.name,
         welcome: data.welcome,
         provider: data.provider,
+        apiKey,
         hasKey: !!data.api_key,
         scenario: data.scenario,
         config: data.config,
