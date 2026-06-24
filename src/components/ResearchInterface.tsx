@@ -615,7 +615,7 @@ export function ResearchInterface({
               repetitionCurrent={engine.repetitionCurrent}
               onExportTxt={visibleMsgCount > 0 ? handleExportTxt : undefined}
               onExportCsv={visibleMsgCount > 0 ? handleExportCsv : undefined}
-              onResetChat={engine.messages.length > 0 ? engine.handleResetChat : undefined}
+              onResetChat={engine.messages.length > 0 ? () => { engine.handleResetChat(); setCurrentView('setup'); } : undefined}
               onStop={engine.isLoading ? engine.handleStop : undefined}
               chatMode={settings.chatMode}
               onChatModeChange={settings.setChatMode}
