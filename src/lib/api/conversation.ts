@@ -1,6 +1,15 @@
 import { Message, ChatConfig } from '../../types';
 import { createProvider } from './factory';
 import { APIError } from './types';
+import { withRequestSlot } from './requestGate';
+
+/** Why a turn is currently waiting, surfaced to the UI so the user sees a
+ *  "waiting for capacity" state instead of a silent spinner or an error.
+ *  `null` means the request is actively in flight (clear any waiting state). */
+export type WaitStatus =
+  | { kind: 'queued' }
+  | { kind: 'rate-limited'; retryInMs: number; attempt: number }
+  | null;
 
 /** HTTP status codes that are safe to retry (rate-limit / server overload). */
 const RETRYABLE_STATUSES = new Set([429, 503, 529]);
@@ -47,7 +56,8 @@ function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
 export async function generateResponse(
   config: ChatConfig,
   messages: Message[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onWait?: (status: WaitStatus) => void,
 ): Promise<Message> {
   const startTime = Date.now();
   const provider = createProvider(config.model);
@@ -68,17 +78,25 @@ export async function generateResponse(
       const base = fromRetryAfter
         ? Math.min((lastError as APIError).retryAfter! * 1000, MAX_RETRY_AFTER_MS)
         : (FALLBACK_DELAYS_MS[attempt - 1] ?? 30_000);
-      await abortableDelay(jitteredDelay(base, fromRetryAfter), signal);
+      const delayMs = jitteredDelay(base, fromRetryAfter);
+      onWait?.({ kind: 'rate-limited', retryInMs: delayMs, attempt });
+      await abortableDelay(delayMs, signal);
     }
 
     try {
-      const result = await provider.makeRequest({
-        apiKey: config.apiKey,
-        orgId: config.orgId,
-        model: config.modelVersion,
-        temperature: config.temperature,
-        maxTokens: config.maxTokens
-      }, apiMessages, signal);
+      const result = await withRequestSlot(
+        () => {
+          onWait?.(null); // slot acquired — request is now actually in flight
+          return provider.makeRequest({
+            apiKey: config.apiKey,
+            orgId: config.orgId,
+            model: config.modelVersion,
+            temperature: config.temperature,
+            maxTokens: config.maxTokens
+          }, apiMessages, signal);
+        },
+        () => onWait?.({ kind: 'queued' }),
+      );
 
       const timeTaken = Date.now() - startTime;
       const wordCount = result.content.trim().split(/\s+/).filter(Boolean).length;

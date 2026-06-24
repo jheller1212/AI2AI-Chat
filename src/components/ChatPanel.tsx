@@ -11,6 +11,7 @@ import { Message } from '../types';
 interface ChatPanelProps {
   messages: Message[];
   isLoading: boolean;
+  waitStatus?: string | null;
   userInput: string;
   onUserInputChange: (value: string) => void;
   onSendMessage: () => void;
@@ -64,6 +65,7 @@ interface ChatPanelProps {
 export function ChatPanel({
   messages,
   isLoading,
+  waitStatus,
   userInput,
   onUserInputChange,
   onSendMessage,
@@ -340,6 +342,7 @@ export function ChatPanel({
                 <ConversationDisplay
                   messages={messages}
                   isLoading={isLoading}
+                  waitStatus={waitStatus}
                   botName1={botName1}
                   botName2={botName2}
                   bubbleColor1={bubbleColor1}

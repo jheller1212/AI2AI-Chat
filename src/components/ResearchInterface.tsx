@@ -598,6 +598,7 @@ export function ResearchInterface({
             <ChatPanel
               messages={engine.messages}
               isLoading={engine.isLoading}
+              waitStatus={engine.waitStatus}
               userInput={settings.userInput}
               onUserInputChange={settings.setUserInput}
               onSendMessage={() => engine.handleSendMessage(settings.userInput, setCurrentView)}
