@@ -30,3 +30,6 @@ CLAUDE.md
 *.njsproj
 *.sln
 *.sw?
+
+# Supabase CLI temp
+supabase/.temp/
