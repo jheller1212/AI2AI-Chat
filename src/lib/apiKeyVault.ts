@@ -11,6 +11,18 @@ export type ProviderVault = {
 
 const EMPTY: ProviderVault = { gpt4: '', claude: '', gemini: '', mistral: '' };
 
+/**
+ * Masked preview of a saved key so users can recognise which key is stored/used
+ * without exposing the full secret: shows the first 10 characters (and last 4
+ * when the key is long enough to keep them distinct).
+ */
+export function maskKey(key: string): string {
+  if (!key) return '';
+  if (key.length <= 10) return key;
+  if (key.length <= 14) return `${key.slice(0, 10)}…`;
+  return `${key.slice(0, 10)}…${key.slice(-4)}`;
+}
+
 // Synchronous read from localStorage cache (used during conversations)
 export function loadVault(): ProviderVault {
   try {

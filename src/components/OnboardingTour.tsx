@@ -71,7 +71,7 @@ const STEPS: TourStep[] = [
   {
     target: null,
     title: 'Advanced Features',
-    description: "Open Advanced Settings to control the conversation flow: set how many messages each bot sends, add delays, repeat runs, use asymmetric roles, or set stop keywords. During a conversation, switch between the Chat and Data tabs — export a .csv with per-message timing, word counts, and model metadata.",
+    description: "Open Advanced Settings to control the conversation flow: set how many messages each bot sends, add delays, repeat runs, choose which bot starts, give the bots distinct Initiator/Responder roles, or set stop keywords. During a conversation, switch between the Chat and Data tabs — export a .csv with per-message timing, word counts, and model metadata.",
   },
   {
     target: null,

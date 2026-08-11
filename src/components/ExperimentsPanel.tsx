@@ -102,7 +102,8 @@ export function ExperimentsPanel({ userId, onClose, onLoad }: ExperimentsPanelPr
       <div className="flex items-center gap-1.5 mt-1">
         <Settings2 className="w-3 h-3 text-gray-400" />
         <span>
-          {cfg.bm === 'asymmetric' ? 'Asymmetric' : 'Symmetric'} ·{' '}
+          {(cfg.sb ?? 'a') === 'b' ? String(cfg.n2 ?? 'Bot B') : String(cfg.n1 ?? 'Bot A')} starts
+          {cfg.bm === 'asymmetric' ? ' · distinct roles' : ''} ·{' '}
           {Math.ceil(Number(cfg.mi ?? 10) / 2)} msgs/bot ·{' '}
           {Number(cfg.rc ?? 1)} run{Number(cfg.rc ?? 1) !== 1 ? 's' : ''}
           {cfg.sk ? ` · stop: "${cfg.sk}"` : ''}
@@ -264,6 +265,14 @@ export function ExperimentsPanel({ userId, onClose, onLoad }: ExperimentsPanelPr
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
                       <ConfigSummary cfg={selected.config} />
                     </div>
+                  </div>
+
+                  {/* Scenario prompt preview */}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Scenario Prompt</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap bg-gray-50 dark:bg-gray-800 rounded p-2 border border-gray-200 dark:border-gray-700">
+                      {String(selected.config.ui ?? '').trim() || <em className="text-gray-400">No scenario prompt</em>}
+                    </p>
                   </div>
 
                   {/* System prompts preview */}

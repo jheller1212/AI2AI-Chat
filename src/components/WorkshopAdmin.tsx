@@ -1,29 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Copy, Check, ToggleLeft, ToggleRight, KeyRound, ExternalLink, AlertTriangle } from 'lucide-react';
 
-const PROVIDER_MODELS: Record<string, { id: string; name: string }[]> = {
-  gpt4: [
-    { id: 'gpt-4o-mini', name: 'GPT-4o Mini (recommended for workshops)' },
-    { id: 'gpt-4o', name: 'GPT-4o' },
-    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo' },
-    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' },
-  ],
-  claude: [
-    { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5 (recommended for workshops)' },
-    { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
-    { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5' },
-  ],
-  gemini: [
-    { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite (recommended for workshops)' },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
-  ],
-  mistral: [
-    { id: 'mistral-small-latest', name: 'Mistral Small (recommended for workshops)' },
-    { id: 'mistral-medium-latest', name: 'Mistral Medium' },
-    { id: 'mistral-large-latest', name: 'Mistral Large' },
-  ],
-};
+import { getProviderModels } from '../lib/models';
 
 const API_KEY_URLS: Record<string, { label: string; url: string }> = {
   gpt4: { label: 'OpenAI API Keys', url: 'https://platform.openai.com/api-keys' },
@@ -128,7 +106,7 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
         config: { m1: newProvider, m2: newProvider, mv1: newModel, mv2: newModel },
       });
       setShowCreate(false);
-      setNewCode(''); setNewName(''); setNewWelcome(''); setNewApiKey(''); setNewModel(PROVIDER_MODELS['gpt4'][0].id);
+      setNewCode(''); setNewName(''); setNewWelcome(''); setNewApiKey(''); setNewModel(getProviderModels('gpt4')[0].id);
       await fetchWorkshops();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create workshop');
@@ -198,7 +176,7 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
                     onChange={e => {
                       const p = e.target.value;
                       setNewProvider(p);
-                      setNewModel(PROVIDER_MODELS[p]?.[0]?.id || '');
+                      setNewModel(getProviderModels(p)[0]?.id || '');
                       if (savedKeys) {
                         const key = savedKeys[p as keyof ProviderVault];
                         if (key) setNewApiKey(key);
@@ -220,8 +198,10 @@ export function WorkshopAdmin({ onClose }: WorkshopAdminProps) {
                   onChange={e => setNewModel(e.target.value)}
                   className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 >
-                  {(PROVIDER_MODELS[newProvider] || []).map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
+                  {getProviderModels(newProvider).map(m => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}{m.workshopRecommended ? ' (recommended for workshops)' : ''}
+                    </option>
                   ))}
                 </select>
               </div>

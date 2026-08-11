@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { generateResponse } from '../lib/api/conversation';
+import type { WaitStatus } from '../lib/api/conversation';
 import { supabase } from '../lib/supabase';
 import { trackEvent } from '../lib/analytics';
 import { APIError } from '../lib/api/types';
@@ -32,6 +33,7 @@ interface ConversationEngineOptions {
   stopKeywords: string;
   saveHistory: boolean;
   botMode: 'symmetric' | 'asymmetric';
+  startingBot: 'a' | 'b';
   openingMessage: string;
   chatMode: boolean;
   // Context
@@ -49,6 +51,15 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
   const [interactionCount, setInteractionCount] = useState(0);
   const [repetitionCurrent, setRepetitionCurrent] = useState(0);
   const [stoppingTriggers, setStoppingTriggers] = useState<Record<string, string>>({});
+  // Human-readable "waiting for capacity" message shown while a turn is queued
+  // behind the per-browser request gate or sleeping through a rate-limit retry.
+  const [waitStatus, setWaitStatus] = useState<string | null>(null);
+
+  const describeWait = (w: WaitStatus): string | null => {
+    if (!w) return null;
+    if (w.kind === 'queued') return 'Many requests at once — your turn is queued…';
+    return `High demand — the API is rate-limiting. Retrying in ${Math.max(1, Math.round(w.retryInMs / 1000))}s…`;
+  };
 
   // Refs for latest values in async callbacks
   const autoInteractRef = useRef(opts.autoInteract);
@@ -151,8 +162,12 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
 
       const ac = new AbortController();
       abortControllerRef.current = ac;
-      const response = await generateResponse(config, remappedMessages, ac.signal);
+      const response = await generateResponse(
+        config, remappedMessages, ac.signal,
+        (w) => setWaitStatus(describeWait(w)),
+      );
       abortControllerRef.current = null;
+      setWaitStatus(null);
 
       if (isStoppedRef.current) { setIsLoading(false); return; }
 
@@ -216,6 +231,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       // If the user pressed Stop after the response arrived, fall through without
       // finalizing — handleStop already reset the loading state.
     } catch (error) {
+      setWaitStatus(null);
       // Stop button aborts in-flight requests and retry waits — not an error to surface
       if (error instanceof Error && error.name === 'AbortError' && isStoppedRef.current) {
         setIsLoading(false);
@@ -230,7 +246,15 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       let msg = error instanceof Error
         ? (error.name === 'AbortError' ? 'Request timed out. Please try again.' : error.message)
         : 'An unknown error occurred';
-      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
+      const providerNames: Record<string, string> = {
+        gpt4: 'OpenAI', claude: 'Anthropic', gemini: 'Google Gemini', mistral: 'Mistral',
+      };
+      const who = providerNames[config.model] || 'provider';
+      if (error instanceof APIError && (error.status === 401 || error.status === 403)) {
+        msg = `The ${who} API key looks invalid or unauthorized (HTTP ${error.status}). Please double-check the key — it may be mistyped, expired, or lack access to this model — then update it and start again.`;
+      } else if (error instanceof APIError && error.status === 429) {
+        msg = `The ${who} API is rate-limiting requests (HTTP 429) — too many were sent too quickly. Wait a moment, then start again. In a workshop where many people share one API key this is common: lower "messages per bot" or add a response delay in Advanced Settings to ease the load.`;
+      } else if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('network')) {
         msg += ' — Troubleshooting: (1) Is your API key copied correctly and complete? (2) Is the key still active and not expired? (3) Does your API account have available credits? (4) Check your browser console for CORS errors.';
       }
       setErrors([msg]);
@@ -249,6 +273,15 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
     localConversationId: string,
     bot1StartsFirst: boolean,
   ) => {
+    // De-burst synchronized starts: when many participants click Start on the
+    // same cue (e.g. instructor says "go"), a short random delay before the
+    // first turn fans the initial requests out across the shared key instead of
+    // all hitting on the same beat. Only the opening turn of a run is staggered.
+    if (repetitionIndex === 0) {
+      await new Promise<void>(resolve => setTimeout(resolve, Math.round(Math.random() * 1200)));
+      if (isStoppedRef.current) { setIsLoading(false); return; }
+    }
+
     const dbConversationId = await createConversationRecord(userMsg, localConversationId);
 
     trackEvent(opts.userId, 'conversation_started', {
@@ -277,12 +310,14 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
         }
       }
     } else if (dbConversationId) {
-      // Asymmetric scripted opener: the chain starts from a pre-written Bot 1
-      // message — save it too, otherwise the conversation is incomplete in
-      // history and bot attribution can't be recovered on load.
+      // Distinct-roles scripted opener: the chain starts from a pre-written
+      // message authored by the starting bot — save it too, otherwise the
+      // conversation is incomplete in history and bot attribution can't be
+      // recovered on load. The opener may be from either bot depending on
+      // startingBot, so save it under the matching bot name.
       const opener = baseMessages[baseMessages.length - 1];
-      if (opener?.role === 'assistant' && opener.botIndex === 1) {
-        await saveMessageToDb(dbConversationId, opener, 'assistant', opts.botName1);
+      if (opener?.role === 'assistant' && (opener.botIndex === 1 || opener.botIndex === 2)) {
+        await saveMessageToDb(dbConversationId, opener, 'assistant', opener.botIndex === 1 ? opts.botName1 : opts.botName2);
       }
     }
 
@@ -330,7 +365,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
   }, [opts.model1, opts.model2, opts.apiKey1, opts.apiKey2, opts.orgId1, opts.orgId2,
       opts.modelVersion1, opts.modelVersion2, opts.temperature1, opts.temperature2,
       opts.maxTokens1, opts.maxTokens2, opts.systemPrompt1, opts.systemPrompt2,
-      opts.botName1, opts.botMode, opts.userId, opts.currentExperimentId,
+      opts.botName1, opts.botName2, opts.botMode, opts.startingBot, opts.userId, opts.currentExperimentId,
       opts.buildEffectivePrompt, generateAIResponse]);
 
   const handleSendMessage = async (
@@ -364,20 +399,24 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
 
     const localConversationId = crypto.randomUUID();
 
-    // Asymmetric mode with a scripted opener
+    // Whether bot 1 speaks first this run is driven by startingBot.
+    const startingIsBot1 = opts.startingBot === 'a';
+
+    // Distinct-roles (asymmetric) mode with a scripted opener.
+    // The opener is authored by the STARTING bot; the OTHER bot speaks next.
     if (opts.botMode === 'asymmetric' && opts.openingMessage.trim()) {
       const opener: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: opts.openingMessage.trim(),
         timestamp: Date.now(),
-        botIndex: 1,
+        botIndex: startingIsBot1 ? 1 : 2,
         conversationId: localConversationId,
         wordCount: opts.openingMessage.trim().split(/\s+/).filter(Boolean).length,
         timeTaken: 0,
-        modelVersion: opts.modelVersion1,
-        temperature: opts.temperature1,
-        systemPrompt: opts.systemPrompt1,
+        modelVersion: startingIsBot1 ? opts.modelVersion1 : opts.modelVersion2,
+        temperature: startingIsBot1 ? opts.temperature1 : opts.temperature2,
+        systemPrompt: startingIsBot1 ? opts.systemPrompt1 : opts.systemPrompt2,
         repetitionNumber: 0,
       };
 
@@ -390,10 +429,13 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
         opener,
       ];
 
-      initialChainRef.current = { userMsg: '', allMessages, localConversationId, bot1StartsFirst: false };
+      // After the opener the OTHER bot responds, so the next responder is bot 1
+      // iff the starting bot was bot 2.
+      const bot1StartsFirst = !startingIsBot1;
+      initialChainRef.current = { userMsg: '', allMessages, localConversationId, bot1StartsFirst };
 
       try {
-        await startChain('', allMessages, 0, localConversationId, false);
+        await startChain('', allMessages, 0, localConversationId, bot1StartsFirst);
       } catch (error) {
         setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
         setIsLoading(false);
@@ -401,7 +443,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       return;
     }
 
-    // Symmetric mode
+    // Symmetric mode — the starting bot is the first responder.
     const trimmed = userInput.trim();
     const newUserMessage: Message = trimmed
       ? { id: crypto.randomUUID(), role: 'user', content: trimmed, timestamp: Date.now() }
@@ -409,16 +451,22 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
 
     setMessages(prev => [...prev, newUserMessage]);
 
+    // Seed the STARTING bot's system prompt so it is in context for the first
+    // turn. (Providers derive the system prompt solely from system-role
+    // messages, not from per-call config.) When bot 1 starts this preserves the
+    // original behavior of seeding sys1.
     const allMessages: Message[] = [
-      { id: 'sys1', role: 'system', content: opts.buildEffectivePrompt(opts.systemPrompt1, 1), timestamp: Date.now() },
+      startingIsBot1
+        ? { id: 'sys1', role: 'system', content: opts.buildEffectivePrompt(opts.systemPrompt1, 1), timestamp: Date.now() }
+        : { id: 'sys2', role: 'system', content: opts.buildEffectivePrompt(opts.systemPrompt2, 2), timestamp: Date.now() },
       ...messages,
       newUserMessage,
     ];
 
-    initialChainRef.current = { userMsg: trimmed, allMessages, localConversationId, bot1StartsFirst: true };
+    initialChainRef.current = { userMsg: trimmed, allMessages, localConversationId, bot1StartsFirst: startingIsBot1 };
 
     try {
-      await startChain(trimmed, allMessages, 0, localConversationId, true);
+      await startChain(trimmed, allMessages, 0, localConversationId, startingIsBot1);
     } catch (error) {
       setErrors([error instanceof Error ? error.message : 'An unknown error occurred']);
       setIsLoading(false);
@@ -435,6 +483,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    setWaitStatus(null);
     setIsLoading(false);
   };
 
@@ -455,6 +504,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
     setIsLoading(false);
     setErrors([]);
     setStoppingTriggers({});
+    setWaitStatus(null);
     initialChainRef.current = null;
     isStoppedRef.current = false;
   };
@@ -462,6 +512,7 @@ export function useConversationEngine(opts: ConversationEngineOptions) {
   return {
     messages, setMessages,
     isLoading,
+    waitStatus,
     errors, setErrors,
     interactionCount,
     repetitionCurrent,

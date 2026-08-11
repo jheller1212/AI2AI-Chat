@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const SUPER_ADMIN = Deno.env.get('SUPER_ADMIN_EMAIL') || '';
+const SUPER_ADMIN = (Deno.env.get('SUPER_ADMIN_EMAIL') || '').toLowerCase().trim();
 
 const ALLOWED_ORIGINS = [
   'https://ai2aichat.com',
@@ -63,7 +63,8 @@ function jsonResponse(body: unknown, status: number, headers: Record<string, str
 
 async function isOrganizer(admin: ReturnType<typeof createClient>, email: string): Promise<boolean> {
   const emailLower = (email || '').toLowerCase().trim();
-  if (emailLower === SUPER_ADMIN) return true;
+  if (!emailLower) return false;
+  if (SUPER_ADMIN && emailLower === SUPER_ADMIN) return true;
   const { data } = await admin
     .from('workshop_organizers')
     .select('id')
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const serviceRoleKey = (Deno.env.get('SB_SERVICE_KEY') ?? Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'))!;
     const encryptionSecret = Deno.env.get('API_KEYS_ENCRYPTION_SECRET');
 
     if (!encryptionSecret) {
@@ -155,10 +156,24 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Workshop not found' }, 404, corsHeaders);
       }
 
+      // Decrypt the workshop key so it can be preloaded into the participant's
+      // vault on join. NOTE: this returns the organizer's key to the browser —
+      // only use a dedicated, spend-capped key per workshop and revoke it after.
+      let apiKey: string | null = null;
+      if (data.api_key) {
+        const cryptoKey = await deriveKey(encryptionSecret, `workshop-${data.id}`);
+        try {
+          apiKey = await decrypt(cryptoKey, data.api_key);
+        } catch {
+          return jsonResponse({ error: 'Failed to decrypt workshop key' }, 500, corsHeaders);
+        }
+      }
+
       return jsonResponse({
         name: data.name,
         welcome: data.welcome,
         provider: data.provider,
+        apiKey,
         hasKey: !!data.api_key,
         scenario: data.scenario,
         config: data.config,
@@ -264,20 +279,75 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true }, 200, corsHeaders);
     }
 
-    // === ADD-ORGANIZER: super admin only ===
-    if (action === 'add-organizer') {
-      if (user.email !== SUPER_ADMIN) {
-        return jsonResponse({ error: 'Only the super admin can add organizers' }, 403, corsHeaders);
+    // === LIST-ORGANIZERS: organizers only ===
+    if (action === 'list-organizers') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
       }
 
-      const { email } = body;
-      if (!email) {
-        return jsonResponse({ error: 'Missing email' }, 400, corsHeaders);
+      const { data, error } = await admin
+        .from('workshop_organizers')
+        .select('email, created_at')
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        return jsonResponse({ error: error.message }, 500, corsHeaders);
+      }
+
+      const organizers = (data || []).map((o: { email: string; created_at: string }) => ({
+        email: o.email,
+        created_at: o.created_at,
+        isSuper: !!SUPER_ADMIN && o.email.toLowerCase().trim() === SUPER_ADMIN,
+      }));
+
+      // Ensure the super admin always appears, even if not stored in the table.
+      if (SUPER_ADMIN && !organizers.some((o) => o.email.toLowerCase().trim() === SUPER_ADMIN)) {
+        organizers.unshift({ email: SUPER_ADMIN, created_at: '', isSuper: true });
+      }
+
+      return jsonResponse({ organizers, superAdmin: SUPER_ADMIN || null }, 200, corsHeaders);
+    }
+
+    // === ADD-ORGANIZER: organizers only ===
+    if (action === 'add-organizer') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const cleanEmail = (body.email || '').toLowerCase().trim();
+      if (!cleanEmail || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cleanEmail)) {
+        return jsonResponse({ error: 'Please enter a valid email address' }, 400, corsHeaders);
       }
 
       const { error } = await admin
         .from('workshop_organizers')
-        .upsert({ email: email.toLowerCase().trim(), added_by: user.id }, { onConflict: 'email' });
+        .upsert({ email: cleanEmail, added_by: user.id }, { onConflict: 'email' });
+
+      if (error) {
+        return jsonResponse({ error: error.message }, 500, corsHeaders);
+      }
+
+      return jsonResponse({ success: true }, 200, corsHeaders);
+    }
+
+    // === REMOVE-ORGANIZER: organizers only; the super admin is protected ===
+    if (action === 'remove-organizer') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const cleanEmail = (body.email || '').toLowerCase().trim();
+      if (!cleanEmail) {
+        return jsonResponse({ error: 'Missing email' }, 400, corsHeaders);
+      }
+      if (SUPER_ADMIN && cleanEmail === SUPER_ADMIN) {
+        return jsonResponse({ error: 'The primary admin cannot be removed' }, 403, corsHeaders);
+      }
+
+      const { error } = await admin
+        .from('workshop_organizers')
+        .delete()
+        .eq('email', cleanEmail);
 
       if (error) {
         return jsonResponse({ error: error.message }, 500, corsHeaders);
@@ -329,6 +399,39 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: 'Missing invite code' }, 400, corsHeaders);
       }
 
+      // --- Rate limiting: max 5 attempts per authenticated user per hour ---
+      // Keyed on user.id (server-verified from the JWT), NOT on client-supplied
+      // headers like x-forwarded-for, which an attacker can rotate to bypass the
+      // limit and which would also lock out everyone behind a shared NAT.
+      const windowStart = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+      const { count: recentAttempts } = await admin
+        .from('invite_rate_limits')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .gte('attempted_at', windowStart);
+
+      const RATE_LIMIT = 5;
+      if ((recentAttempts ?? 0) >= RATE_LIMIT) {
+        return jsonResponse(
+          { error: 'Too many invite code attempts. Please wait before trying again.' },
+          429,
+          corsHeaders,
+        );
+      }
+
+      // Record this attempt before validating the code (fail-closed)
+      await admin
+        .from('invite_rate_limits')
+        .insert({ user_id: user.id, code: code.toUpperCase().trim() });
+
+      // Opportunistic cleanup of old entries (best-effort, non-blocking)
+      admin
+        .rpc('purge_old_invite_rate_limits')
+        .then(() => {/* ignore */})
+        .catch(() => {/* ignore */});
+      // --- End rate limiting ---
+
       const { data: invite } = await admin
         .from('organizer_invite_codes')
         .select('id, used_by')
@@ -356,6 +459,70 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: true }, 200, corsHeaders);
     }
 
+    // === LIVE-USAGE: organizers only — per-minute API-call & error volume ===
+    // Lets an organizer watch for load spikes during a workshop. Each assistant
+    // message is one provider call; provider_error events flag rate-limit/failures.
+    if (action === 'live-usage') {
+      if (!await isOrganizer(admin, user.email || '')) {
+        return jsonResponse({ error: 'Not authorized' }, 403, corsHeaders);
+      }
+
+      const { windowMinutes } = body as { windowMinutes?: number };
+      const win = Math.min(Math.max(Math.round(windowMinutes ?? 120), 10), 360); // 10min–6h
+      const since = new Date(Date.now() - win * 60 * 1000);
+      const sinceIso = since.toISOString();
+
+      const { data: msgs } = await admin
+        .from('messages')
+        .select('created_at, role')
+        .gte('created_at', sinceIso)
+        .limit(20000);
+      const { data: evs } = await admin
+        .from('events')
+        .select('created_at')
+        .eq('event_type', 'provider_error')
+        .gte('created_at', sinceIso)
+        .limit(20000);
+
+      // Bucket per minute (UTC). 'YYYY-MM-DDTHH:MM' is a stable per-minute key.
+      const callsByMin: Record<string, number> = {};
+      const errorsByMin: Record<string, number> = {};
+      let totalCalls = 0;
+      let totalErrors = 0;
+      (msgs || []).forEach((m: { created_at: string; role: string }) => {
+        if (m.role === 'user') return; // count only AI turns = provider calls
+        const minute = (m.created_at || '').slice(0, 16);
+        if (!minute) return;
+        callsByMin[minute] = (callsByMin[minute] || 0) + 1;
+        totalCalls++;
+      });
+      (evs || []).forEach((e: { created_at: string }) => {
+        const minute = (e.created_at || '').slice(0, 16);
+        if (!minute) return;
+        errorsByMin[minute] = (errorsByMin[minute] || 0) + 1;
+        totalErrors++;
+      });
+
+      // Dense, gap-filled minute series so idle minutes show as zero.
+      const series: Array<{ minute: string; calls: number; errors: number }> = [];
+      const startMs = Math.floor(since.getTime() / 60000) * 60000;
+      const nowMs = Math.floor(Date.now() / 60000) * 60000;
+      for (let t = startMs; t <= nowMs; t += 60000) {
+        const minute = new Date(t).toISOString().slice(0, 16);
+        series.push({ minute, calls: callsByMin[minute] || 0, errors: errorsByMin[minute] || 0 });
+      }
+      const peakCallsPerMin = series.reduce((mx, s) => Math.max(mx, s.calls), 0);
+
+      return jsonResponse({
+        windowMinutes: win,
+        series,
+        totalCalls,
+        totalErrors,
+        peakCallsPerMin,
+        generatedAt: new Date().toISOString(),
+      }, 200, corsHeaders);
+    }
+
     // === ADMIN-STATS: organizers only — analytics dashboard ===
     if (action === 'admin-stats') {
       if (!await isOrganizer(admin, user.email || '')) {
@@ -368,65 +535,111 @@ Deno.serve(async (req) => {
       let dateFilter: string | null = null;
       const now = new Date();
       if (period === 'day') {
-        const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-        dateFilter = d.toISOString();
+        dateFilter = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
       } else if (period === 'week') {
-        const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6));
-        dateFilter = d.toISOString();
+        dateFilter = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6)).toISOString();
       } else if (period === 'month') {
-        const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29));
-        dateFilter = d.toISOString();
+        dateFilter = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29)).toISOString();
       }
       // 'all' or undefined => no date filter
 
-      // User count via admin auth
-      let totalUsers = 0;
+      // --- Users (via admin auth; created_at powers total/new + the signup timeline) ---
+      const allUserDates: string[] = [];
       try {
         let page = 1;
-        let count = 0;
         while (true) {
           const { data: { users: batch } } = await admin.auth.admin.listUsers({ perPage: 1000, page });
-          count += batch.length;
+          batch.forEach((u: { created_at?: string }) => { if (u.created_at) allUserDates.push(u.created_at); });
           if (batch.length < 1000) break;
           page++;
         }
-        totalUsers = count;
-      } catch {
-        totalUsers = 0;
-      }
+      } catch { /* ignore */ }
+      const totalUsers = allUserDates.length;
+      const newUsers = dateFilter ? allUserDates.filter((d) => d >= dateFilter!).length : totalUsers;
+      const newUsersByDay: Record<string, number> = {};
+      allUserDates.forEach((d) => {
+        if (dateFilter && d < dateFilter) return;
+        const day = d.slice(0, 10);
+        newUsersByDay[day] = (newUsersByDay[day] || 0) + 1;
+      });
 
-      // Conversations
-      let convQuery = admin.from('conversations').select('id, created_at');
+      // --- Conversations (also drives provider usage; messages.model stores the
+      //     bot's display name, so provider lives on model1_type/model2_type) ---
+      const providerLabel = (key: string): string => {
+        const k = (key || '').toLowerCase();
+        if (!k) return 'Unknown';
+        if (k === 'gpt4' || k.startsWith('gpt') || k.startsWith('openai') || k.startsWith('o1') || k.startsWith('o3')) return 'OpenAI';
+        if (k.startsWith('claude') || k === 'anthropic') return 'Anthropic';
+        if (k.startsWith('gemini') || k === 'google') return 'Gemini';
+        if (k.startsWith('mistral') || k.startsWith('magistral') || k.startsWith('ministral')) return 'Mistral';
+        return k.charAt(0).toUpperCase() + k.slice(1);
+      };
+      let convQuery = admin.from('conversations').select('id, created_at, user_id, model1_type, model2_type');
       if (dateFilter) convQuery = convQuery.gte('created_at', dateFilter);
       const { data: conversations } = await convQuery;
-      const totalConversations = conversations?.length || 0;
-
-      // Conversations by day
-      const dayMap: Record<string, number> = {};
-      (conversations || []).forEach((c: { created_at: string }) => {
+      const convRows = conversations || [];
+      const totalConversations = convRows.length;
+      const activeUsers = new Set(convRows.map((c: { user_id: string }) => c.user_id).filter(Boolean)).size;
+      const convByDay: Record<string, number> = {};
+      const providerBreakdown: Record<string, number> = {};
+      convRows.forEach((c: { created_at: string; model1_type?: string; model2_type?: string }) => {
         const day = c.created_at?.slice(0, 10) || '';
-        if (day) dayMap[day] = (dayMap[day] || 0) + 1;
+        if (day) convByDay[day] = (convByDay[day] || 0) + 1;
+        [c.model1_type, c.model2_type].forEach((t) => {
+          if (!t) return;
+          const fam = providerLabel(t);
+          providerBreakdown[fam] = (providerBreakdown[fam] || 0) + 1;
+        });
       });
-      const conversationsByDay = Object.entries(dayMap)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([day, count]) => ({ day, count }));
+      const providerUsage = Object.entries(providerBreakdown)
+        .sort(([, a], [, b]) => b - a)
+        .map(([provider, count]) => ({ provider, count }));
 
-      // Messages
-      let msgQuery = admin.from('messages').select('id', { count: 'exact', head: true });
+      // --- Messages (role split) ---
+      let msgQuery = admin.from('messages').select('created_at, role');
       if (dateFilter) msgQuery = msgQuery.gte('created_at', dateFilter);
-      const { count: totalMessages } = await msgQuery;
+      const { data: messages } = await msgQuery;
+      const msgRows = messages || [];
+      const totalMessages = msgRows.length;
+      let userMessages = 0;
+      let assistantMessages = 0;
+      const msgByDay: Record<string, number> = {};
+      msgRows.forEach((m: { created_at: string; role: string }) => {
+        if (m.role === 'user') userMessages++;
+        else assistantMessages++;
+        const day = m.created_at?.slice(0, 10) || '';
+        if (day) msgByDay[day] = (msgByDay[day] || 0) + 1;
+      });
+      const avgMessagesPerConversation = totalConversations > 0
+        ? Math.round((totalMessages / totalConversations) * 10) / 10
+        : 0;
 
-      // Experiments
+      // --- Experiments (classic + research) + scenarios ---
       let expQuery = admin.from('experiments').select('id', { count: 'exact', head: true });
       if (dateFilter) expQuery = expQuery.gte('created_at', dateFilter);
-      const { count: totalExperiments } = await expQuery;
+      const { count: classicExperiments } = await expQuery;
+      let rExpQuery = admin.from('research_experiments').select('id', { count: 'exact', head: true });
+      if (dateFilter) rExpQuery = rExpQuery.gte('created_at', dateFilter);
+      const { count: researchExperiments } = await rExpQuery;
+      const totalExperiments = (classicExperiments || 0) + (researchExperiments || 0);
+      let scenQuery = admin.from('scenarios').select('id', { count: 'exact', head: true });
+      if (dateFilter) scenQuery = scenQuery.gte('created_at', dateFilter);
+      const { count: totalScenarios } = await scenQuery;
 
-      // Workshops
+      // --- Events (exports + provider errors) ---
+      let evQuery = admin.from('events').select('event_type, created_at');
+      if (dateFilter) evQuery = evQuery.gte('created_at', dateFilter);
+      const { data: events } = await evQuery;
+      const evRows = events || [];
+      const totalExports = evRows.filter((e: { event_type: string }) => e.event_type === 'export').length;
+      const providerErrors = evRows.filter((e: { event_type: string }) => e.event_type === 'provider_error').length;
+
+      // --- Workshops ---
       const { data: workshops } = await admin.from('workshops').select('active');
       const activeWorkshops = (workshops || []).filter((w: { active: boolean }) => w.active).length;
       const inactiveWorkshops = (workshops || []).filter((w: { active: boolean }) => !w.active).length;
 
-      // Workshop sign-ups
+      // --- Workshop sign-ups ---
       let signupQuery = admin.from('workshop_signups').select('user_id, workshop_code, created_at');
       if (dateFilter) signupQuery = signupQuery.gte('created_at', dateFilter);
       const { data: signups } = await signupQuery.order('created_at', { ascending: false });
@@ -439,36 +652,68 @@ Deno.serve(async (req) => {
         uniqueSignupKeys.add(key);
         return true;
       });
-
       const totalSignups = uniqueSignups.length;
 
-      // Group by workshop
       const workshopMap: Record<string, number> = {};
-      uniqueSignups.forEach((s: { workshop_code: string }) => {
+      const signupByDay: Record<string, number> = {};
+      uniqueSignups.forEach((s: { workshop_code: string; created_at: string }) => {
         workshopMap[s.workshop_code] = (workshopMap[s.workshop_code] || 0) + 1;
+        const day = s.created_at?.slice(0, 10) || '';
+        if (day) signupByDay[day] = (signupByDay[day] || 0) + 1;
       });
       const signupsByWorkshop = Object.entries(workshopMap)
         .sort(([, a], [, b]) => b - a)
         .map(([workshop_code, count]) => ({ workshop_code, count }));
 
-      // Recent sign-ups (last 20, deduplicated)
       const recentSignups = uniqueSignups.slice(0, 20).map((s: { user_id: string; workshop_code: string; created_at: string }) => ({
         user_id: s.user_id,
         workshop_code: s.workshop_code,
         created_at: s.created_at,
       }));
 
+      // --- Unified daily timeline ---
+      const allDays = new Set<string>([
+        ...Object.keys(convByDay),
+        ...Object.keys(msgByDay),
+        ...Object.keys(newUsersByDay),
+        ...Object.keys(signupByDay),
+      ]);
+      const timeline = [...allDays].sort((a, b) => a.localeCompare(b)).map((day) => ({
+        day,
+        conversations: convByDay[day] || 0,
+        messages: msgByDay[day] || 0,
+        newUsers: newUsersByDay[day] || 0,
+        signups: signupByDay[day] || 0,
+      }));
+
+      // Back-compat for any older client
+      const conversationsByDay = Object.entries(convByDay)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([day, count]) => ({ day, count }));
+
       return jsonResponse({
         totalUsers,
+        newUsers,
+        activeUsers,
         totalConversations,
-        totalMessages: totalMessages || 0,
-        totalExperiments: totalExperiments || 0,
+        totalMessages,
+        userMessages,
+        assistantMessages,
+        avgMessagesPerConversation,
+        totalExperiments,
+        classicExperiments: classicExperiments || 0,
+        researchExperiments: researchExperiments || 0,
+        totalScenarios: totalScenarios || 0,
+        totalExports,
+        providerErrors,
+        providerUsage,
         activeWorkshops,
         inactiveWorkshops,
         totalSignups,
-        conversationsByDay,
         signupsByWorkshop,
         recentSignups,
+        conversationsByDay,
+        timeline,
       }, 200, corsHeaders);
     }
 

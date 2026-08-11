@@ -50,6 +50,9 @@ export function ResearchInterface({
   // --- View routing ---
   const [currentView, setCurrentView] = useState<AppView>(() => {
     if (workshopData || sharedConfig) return 'setup';
+    // The onboarding tour spotlights the bot-config panels, which only exist on
+    // the Setup view — land there when it will auto-show (Rewatch does the same).
+    if (shouldAutoShowTour()) return 'setup';
     return 'dashboard';
   });
   const [showUserSettings, setShowUserSettings] = useState(false);
@@ -79,8 +82,10 @@ export function ResearchInterface({
     setDelayVariance: settings.setDelayVariance,
     setRepetitionCount: settings.setRepetitionCount,
     setBotMode: settings.setBotMode,
+    setStartingBot: settings.setStartingBot,
     setOpeningMessage: settings.setOpeningMessage,
     setStopKeywords: settings.setStopKeywords,
+    setUserInput: settings.setUserInput,
     getBotConfig: () => ({
       m1: bot.model1, mv1: bot.modelVersion1, t1: bot.temperature1, mt1: bot.maxTokens1,
       sp1: bot.systemPrompt1, n1: bot.botName1,
@@ -90,8 +95,9 @@ export function ResearchInterface({
     }),
     getSettingsConfig: () => ({
       mi: settings.maxInteractions, rd: settings.responseDelay, dv: settings.delayVariance,
-      rc: settings.repetitionCount, bm: settings.botMode, om: settings.openingMessage,
-      sk: settings.stopKeywords,
+      rc: settings.repetitionCount, bm: settings.botMode, sb: settings.startingBot,
+      om: settings.openingMessage,
+      sk: settings.stopKeywords, ui: settings.userInput,
     }),
   });
 
@@ -140,6 +146,7 @@ export function ResearchInterface({
       if (s.sharedPrompt) settings.setUserInput(s.sharedPrompt);
       if (s.stopKeywords) settings.setStopKeywords(s.stopKeywords);
       if (s.botMode) settings.setBotMode(s.botMode);
+      if (s.startingBot) settings.setStartingBot(s.startingBot);
     }
 
     if (workshopData.config) {
@@ -170,7 +177,8 @@ export function ResearchInterface({
       responseDelay: settings.responseDelay, delayVariance: settings.delayVariance,
       autoInteract: settings.autoInteract, maxInteractions: settings.maxInteractions,
       repetitionCount: settings.repetitionCount, saveHistory: settings.saveHistory,
-      botMode: settings.botMode, openingMessage: settings.openingMessage,
+      botMode: settings.botMode, startingBot: settings.startingBot,
+      openingMessage: settings.openingMessage,
       stopKeywords: settings.stopKeywords, chatMode: settings.chatMode,
     });
   }, [bot.model1, bot.model2, bot.modelVersion1, bot.modelVersion2,
@@ -179,7 +187,8 @@ export function ResearchInterface({
       bot.bubbleColor1, bot.bubbleColor2, bot.textColor1, bot.textColor2,
       settings.responseDelay, settings.delayVariance, settings.autoInteract,
       settings.maxInteractions, settings.repetitionCount, settings.saveHistory,
-      settings.botMode, settings.openingMessage, settings.stopKeywords, settings.chatMode]);
+      settings.botMode, settings.startingBot, settings.openingMessage,
+      settings.stopKeywords, settings.chatMode]);
 
   // --- Scenario loading ---
   const handleLoadScenario = (scenario: Scenario) => {
@@ -188,15 +197,20 @@ export function ResearchInterface({
     settings.setUserInput(scenario.sharedPrompt);
     settings.setStopKeywords(scenario.stopKeywords);
     settings.setBotMode(scenario.botMode);
+    settings.setStartingBot(scenario.startingBot ?? 'a');
   };
 
   // --- Export / Share handlers ---
   const handleExportTxt = () => {
+    const msgNumByConv: Record<string, number> = {};
     const lines = engine.messages
       .filter(m => m.role !== 'system' && !m.hidden)
       .map(m => {
         const label = m.role === 'user' ? 'User' : (m.botIndex === 1 ? bot.botName1 : bot.botName2);
-        return `[${label}]\n${m.content}`;
+        const convId = m.conversationId ?? '';
+        const msgNum = (msgNumByConv[convId] = (msgNumByConv[convId] ?? 0) + 1);
+        const idTag = convId ? ` · conv ${convId.slice(0, 8)} · msg ${msgNum}` : ` · msg ${msgNum}`;
+        return `[${label}${idTag}]\n${m.content}`;
       });
     const blob = new Blob([lines.join('\n\n---\n\n')], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -223,10 +237,13 @@ export function ResearchInterface({
       if (m.conversationId) finalTurnByConv[m.conversationId] = (finalTurnByConv[m.conversationId] ?? 0) + 1;
     });
 
+    // Running 1-based message index within each conversation.
+    const msgNumByConv: Record<string, number> = {};
+
     const headers = [
       'experiment_id', 'experiment_name',
       'session_id', 'condition_label', 'repetition_number',
-      'conversation_id', 'timestamp', 'sender', 'bot_role',
+      'conversation_id', 'message_number', 'timestamp', 'sender', 'bot_role',
       'system_prompt_hash', 'model', 'temperature',
       'content', 'words', 'response_time_ms',
       'stopping_trigger', 'final_turn_number',
@@ -239,12 +256,14 @@ export function ResearchInterface({
       const fallbackPrompt = m.botIndex === 1 ? bot.systemPrompt1 : m.botIndex === 2 ? bot.systemPrompt2 : '';
       const fallbackModel  = m.botIndex === 1 ? bot.modelVersion1 : m.botIndex === 2 ? bot.modelVersion2 : '';
       const fallbackTemp   = m.botIndex === 1 ? bot.temperature1  : m.botIndex === 2 ? bot.temperature2  : '';
+      const initiatorBotIndex = settings.startingBot === 'a' ? 1 : 2;
       const botRole = settings.botMode === 'asymmetric'
-        ? (m.botIndex === 1 ? 'initiator' : m.botIndex === 2 ? 'responder' : '')
+        ? (m.botIndex === 1 || m.botIndex === 2 ? (m.botIndex === initiatorBotIndex ? 'initiator' : 'responder') : '')
         : '';
       const promptText = m.systemPrompt ?? fallbackPrompt;
       const promptHash = promptText ? hashString(promptText) : '';
       const convId = m.conversationId ?? '';
+      const msgNum = (msgNumByConv[convId] = (msgNumByConv[convId] ?? 0) + 1);
 
       rows.push([
         csvField(experiments.currentExperimentId ?? ''),
@@ -253,6 +272,7 @@ export function ResearchInterface({
         csvField(conditionLabel ?? ''),
         csvField(String(m.repetitionNumber ?? 0)),
         csvField(convId),
+        csvField(String(msgNum)),
         csvField(new Date(m.timestamp).toISOString()),
         csvField(label),
         csvField(botRole),
@@ -284,13 +304,14 @@ export function ResearchInterface({
     m2: bot.model2, mv2: bot.modelVersion2, t2: bot.temperature2, mt2: bot.maxTokens2,
     sp2: bot.systemPrompt2, n2: bot.botName2,
     mi: settings.maxInteractions, rd: settings.responseDelay, dv: settings.delayVariance,
-    rc: settings.repetitionCount, bm: settings.botMode, om: settings.openingMessage,
+    rc: settings.repetitionCount, bm: settings.botMode, sb: settings.startingBot,
+    om: settings.openingMessage,
     sk: settings.stopKeywords,
     bc1: bot.bubbleColor1, bc2: bot.bubbleColor2, tc1: bot.textColor1, tc2: bot.textColor2,
   }), [bot.model1, bot.modelVersion1, bot.temperature1, bot.maxTokens1, bot.systemPrompt1, bot.botName1,
        bot.model2, bot.modelVersion2, bot.temperature2, bot.maxTokens2, bot.systemPrompt2, bot.botName2,
        settings.maxInteractions, settings.responseDelay, settings.delayVariance, settings.repetitionCount,
-       settings.botMode, settings.openingMessage, settings.stopKeywords,
+       settings.botMode, settings.startingBot, settings.openingMessage, settings.stopKeywords,
        bot.bubbleColor1, bot.bubbleColor2, bot.textColor1, bot.textColor2]);
 
   const handleShareConfig = useCallback(() => {
@@ -517,8 +538,8 @@ export function ResearchInterface({
       {/* === VIEW ROUTING === */}
 
       <AnimatePresence mode="wait">
+      <motion.div key={currentView} variants={pageVariants} initial="initial" animate="animate" exit="exit" className="relative z-[1] flex-1 min-h-0 flex flex-col">
       {currentView === 'dashboard' && (
-        <motion.div key="view-dashboard" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="relative z-[1] flex-1 min-h-0 flex flex-col">
         <Dashboard
           userId={user.id}
           onNewConversation={() => { engine.handleResetChat(); setCurrentView('setup'); }}
@@ -527,11 +548,9 @@ export function ResearchInterface({
           onOpenHistory={() => setShowHistory(true)}
           onOpenExperiments={() => setShowExperiments(true)}
         />
-        </motion.div>
       )}
 
       {currentView === 'setup' && (
-        <motion.div key="view-setup" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="relative z-[1] flex-1 min-h-0 flex flex-col">
         <SetupPage
           botName1={bot.botName1} onBotName1Change={bot.setBotName1}
           model1={bot.model1} onModel1Change={bot.setModel1}
@@ -562,6 +581,7 @@ export function ResearchInterface({
           chatMode={settings.chatMode} onChatModeChange={settings.setChatMode}
           saveHistory={settings.saveHistory} onSaveHistoryChange={settings.setSaveHistory}
           botMode={settings.botMode} onBotModeChange={settings.setBotMode}
+          startingBot={settings.startingBot} onStartingBotChange={settings.setStartingBot}
           openingMessage={settings.openingMessage} onOpeningMessageChange={settings.setOpeningMessage}
           stopKeywords={settings.stopKeywords} onStopKeywordsChange={settings.setStopKeywords}
           onStartConversation={() => engine.handleSendMessage(settings.userInput, setCurrentView)}
@@ -569,16 +589,16 @@ export function ResearchInterface({
           isLoading={engine.isLoading}
           userId={user.id}
         />
-        </motion.div>
       )}
 
       {currentView === 'chat' && (
-        <motion.main key="view-chat" variants={pageVariants} initial="initial" animate="animate" exit="exit" className="relative z-[1] flex-1 min-h-0 w-full px-2 sm:px-4 lg:px-6 py-3 overflow-hidden">
+        <main className="flex-1 min-h-0 w-full px-2 sm:px-4 lg:px-6 py-3 overflow-hidden">
           <div className="flex-1 flex flex-col gap-2 min-w-0 min-h-0 overflow-hidden h-full">
             <ErrorDisplay errors={engine.errors} onClear={() => engine.setErrors([])} />
             <ChatPanel
               messages={engine.messages}
               isLoading={engine.isLoading}
+              waitStatus={engine.waitStatus}
               userInput={settings.userInput}
               onUserInputChange={settings.setUserInput}
               onSendMessage={() => engine.handleSendMessage(settings.userInput, setCurrentView)}
@@ -596,7 +616,7 @@ export function ResearchInterface({
               repetitionCurrent={engine.repetitionCurrent}
               onExportTxt={visibleMsgCount > 0 ? handleExportTxt : undefined}
               onExportCsv={visibleMsgCount > 0 ? handleExportCsv : undefined}
-              onResetChat={engine.messages.length > 0 ? engine.handleResetChat : undefined}
+              onResetChat={engine.messages.length > 0 ? () => { engine.handleResetChat(); setCurrentView('setup'); } : undefined}
               onStop={engine.isLoading ? engine.handleStop : undefined}
               chatMode={settings.chatMode}
               onChatModeChange={settings.setChatMode}
@@ -612,6 +632,8 @@ export function ResearchInterface({
               conditionLabel={conditionLabel}
               botMode={settings.botMode}
               onBotModeChange={settings.setBotMode}
+              startingBot={settings.startingBot}
+              onStartingBotChange={settings.setStartingBot}
               openingMessage={settings.openingMessage}
               onOpeningMessageChange={settings.setOpeningMessage}
               stopKeywords={settings.stopKeywords}
@@ -626,8 +648,9 @@ export function ResearchInterface({
               scenarioCards={engine.messages.length === 0 ? <ScenarioCards onSelect={handleLoadScenario} /> : undefined}
             />
           </div>
-        </motion.main>
+        </main>
       )}
+      </motion.div>
       </AnimatePresence>
     </div>
     </MotionConfig>
