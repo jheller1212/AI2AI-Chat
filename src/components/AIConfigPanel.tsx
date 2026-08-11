@@ -136,7 +136,7 @@ export function AIConfigPanel({
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
             maxLength={50}
-            className="text-base font-semibold text-gray-900 dark:text-gray-100 bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-indigo-500 focus:outline-none w-full"
+            className="text-base font-semibold text-gray-900 dark:text-gray-100 bg-transparent border-b border-gray-300 dark:border-white/10 focus:border-indigo-500 focus:outline-none w-full"
             placeholder="Bot name"
           />
         </div>
@@ -193,7 +193,7 @@ export function AIConfigPanel({
         {showVersions && (
           <div
             ref={versionPanelRef}
-            className="mb-2 border border-gray-200 dark:border-gray-600 rounded-lg overflow-hidden bg-white dark:bg-gray-900 shadow-md"
+            className="mb-2 border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden bg-white dark:bg-[#0c1830] shadow-md"
           >
             {versions.length === 0 ? (
               <p className="text-xs text-gray-400 dark:text-gray-500 px-3 py-3 text-center">
@@ -202,7 +202,7 @@ export function AIConfigPanel({
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-48 overflow-y-auto">
                 {versions.map((v) => (
-                  <div key={v.id} className="flex items-start gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-800 group">
+                  <div key={v.id} className="flex items-start gap-2 px-3 py-2 hover:bg-gray-50 dark:hover:bg-[#16294a] group">
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] text-gray-400 dark:text-gray-500 mb-0.5">{formatDate(v.created_at)}</p>
                       <p className="text-xs text-gray-700 dark:text-gray-300 line-clamp-2">{v.content}</p>
@@ -223,13 +223,13 @@ export function AIConfigPanel({
         <textarea
           value={systemPrompt}
           onChange={(e) => onSystemPromptChange(e.target.value)}
-          className="w-full p-3 border border-lab-border dark:border-gray-600 rounded-lab-btn min-h-[160px] text-sm font-mono focus:ring-2 focus:ring-lab-primary focus:border-transparent bg-lab-bg dark:bg-gray-700 text-lab-heading dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-y"
+          className="w-full p-3 border border-lab-border dark:border-white/10 rounded-lab-btn min-h-[160px] text-sm font-mono focus:ring-2 focus:ring-lab-primary focus:border-transparent bg-lab-bg dark:bg-[#16294a] text-lab-heading dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-y"
           placeholder="Enter system prompt…"
         />
       </div>
 
       {/* Message appearance */}
-      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+      <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/10">
         <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">Message Appearance</p>
         <div className="flex gap-6">
           <label className="flex flex-col gap-1.5 text-xs text-gray-600 dark:text-gray-400">
@@ -239,7 +239,7 @@ export function AIConfigPanel({
                 type="color"
                 value={bubbleColor}
                 onChange={(e) => onBubbleColorChange(e.target.value)}
-                className="w-8 h-8 rounded cursor-pointer border border-gray-200 dark:border-gray-600"
+                className="w-8 h-8 rounded cursor-pointer border border-gray-200 dark:border-white/10"
                 title="Bubble background color"
               />
               <span className="font-mono text-gray-400 dark:text-gray-500">{bubbleColor}</span>
@@ -252,7 +252,7 @@ export function AIConfigPanel({
                 type="color"
                 value={textColor}
                 onChange={(e) => onTextColorChange(e.target.value)}
-                className="w-8 h-8 rounded cursor-pointer border border-gray-200 dark:border-gray-600"
+                className="w-8 h-8 rounded cursor-pointer border border-gray-200 dark:border-white/10"
                 title="Message text color"
               />
               <span className="font-mono text-gray-400 dark:text-gray-500">{textColor}</span>

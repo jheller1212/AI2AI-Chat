@@ -126,7 +126,7 @@ export function SetupPage(props: SetupPageProps) {
             value={props.userInput}
             onChange={(e) => props.onUserInputChange(e.target.value)}
             placeholder="Describe a scenario, pose a question, or leave blank to let the system prompts guide the conversation..."
-            className="w-full p-3 border border-lab-border dark:border-gray-600 rounded-lab-btn text-sm font-mono bg-lab-bg dark:bg-gray-700 text-lab-heading dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-y min-h-[120px] focus:ring-2 focus:ring-lab-primary focus:border-transparent"
+            className="w-full p-3 border border-lab-border dark:border-white/10 rounded-lab-btn text-sm font-mono bg-lab-bg dark:bg-[#16294a] text-lab-heading dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 resize-y min-h-[120px] focus:ring-2 focus:ring-lab-primary focus:border-transparent"
           />
         </div>
 
@@ -146,7 +146,7 @@ export function SetupPage(props: SetupPageProps) {
                 {/* Auto-interact */}
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={props.autoInteract} onChange={e => props.onAutoInteractChange(e.target.checked)}
-                    className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500" />
+                    className="rounded border-gray-300 dark:border-white/10 text-indigo-600 focus:ring-indigo-500" />
                   Auto-interact
                   <InfoTooltip text="When enabled, the two AIs automatically take turns responding to each other." />
                 </label>
@@ -154,7 +154,7 @@ export function SetupPage(props: SetupPageProps) {
                 {/* Chat mode */}
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={props.chatMode} onChange={e => props.onChatModeChange(e.target.checked)}
-                    className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500" />
+                    className="rounded border-gray-300 dark:border-white/10 text-indigo-600 focus:ring-indigo-500" />
                   Chat mode
                   <InfoTooltip text="Appends an instruction to both bots asking them to reply in short, conversational sentences (1–2 sentences max)." />
                 </label>
@@ -162,7 +162,7 @@ export function SetupPage(props: SetupPageProps) {
                 {/* Save to history */}
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input type="checkbox" checked={props.saveHistory} onChange={e => props.onSaveHistoryChange(e.target.checked)}
-                    className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500" />
+                    className="rounded border-gray-300 dark:border-white/10 text-indigo-600 focus:ring-indigo-500" />
                   Save to history
                   <InfoTooltip text="When disabled, this conversation is not written to the database." />
                 </label>
@@ -176,7 +176,7 @@ export function SetupPage(props: SetupPageProps) {
                     <input type="number" min="2" max="25" step="1"
                       value={Math.ceil(props.maxInteractions / 2)}
                       onChange={e => props.onMaxInteractionsChange(Math.max(2, Number(e.target.value)) * 2)}
-                      className="w-14 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                      className="w-14 px-2 py-1 border border-gray-300 dark:border-white/10 rounded text-sm bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100" />
                   </label>
 
                   {/* Delay */}
@@ -192,7 +192,7 @@ export function SetupPage(props: SetupPageProps) {
                   {/* Length-based delay */}
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input type="checkbox" checked={props.delayVariance} onChange={e => props.onDelayVarianceChange(e.target.checked)}
-                      className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 focus:ring-indigo-500" />
+                      className="rounded border-gray-300 dark:border-white/10 text-indigo-600 focus:ring-indigo-500" />
                     <span className="text-gray-500 dark:text-gray-400">Length-based delay</span>
                   </label>
 
@@ -202,7 +202,7 @@ export function SetupPage(props: SetupPageProps) {
                     <input type="number" min="1" max="100" step="1"
                       value={props.repetitionCount}
                       onChange={e => props.onRepetitionCountChange(Math.max(1, Number(e.target.value)))}
-                      className="w-14 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" />
+                      className="w-14 px-2 py-1 border border-gray-300 dark:border-white/10 rounded text-sm bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100" />
                     <span className="text-gray-500 dark:text-gray-400">runs</span>
                   </label>
                 </div>
@@ -212,13 +212,13 @@ export function SetupPage(props: SetupPageProps) {
               <div className="flex flex-wrap gap-x-6 gap-y-3 text-sm items-center">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 dark:text-gray-400">Conversation starts with</span>
-                  <div className="flex rounded-md border border-gray-300 dark:border-gray-600 overflow-hidden text-[11px]">
+                  <div className="flex rounded-md border border-gray-300 dark:border-white/10 overflow-hidden text-[11px]">
                     <button onClick={() => props.onStartingBotChange('a')}
-                      className={`px-2.5 py-1 transition-colors max-w-[140px] truncate ${props.startingBot === 'a' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                      className={`px-2.5 py-1 transition-colors max-w-[140px] truncate ${props.startingBot === 'a' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-[#16294a] text-gray-700 dark:text-gray-300'}`}>
                       {props.botName1 || 'Bot A'}
                     </button>
                     <button onClick={() => props.onStartingBotChange('b')}
-                      className={`px-2.5 py-1 transition-colors border-l border-gray-300 dark:border-gray-600 max-w-[140px] truncate ${props.startingBot === 'b' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>
+                      className={`px-2.5 py-1 transition-colors border-l border-gray-300 dark:border-white/10 max-w-[140px] truncate ${props.startingBot === 'b' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-[#16294a] text-gray-700 dark:text-gray-300'}`}>
                       {props.botName2 || 'Bot B'}
                     </button>
                   </div>
@@ -240,7 +240,7 @@ export function SetupPage(props: SetupPageProps) {
                     </span>
                     <input type="text" value={props.openingMessage} onChange={e => props.onOpeningMessageChange(e.target.value)}
                       placeholder="Scripted first line (blank = AI generates)"
-                      className="flex-1 min-w-0 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500" />
+                      className="flex-1 min-w-0 px-2 py-1 text-xs border border-gray-300 dark:border-white/10 rounded bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500" />
                   </label>
                 )}
 
@@ -248,7 +248,7 @@ export function SetupPage(props: SetupPageProps) {
                   <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">Stop words</span>
                   <input type="text" value={props.stopKeywords} onChange={e => props.onStopKeywordsChange(e.target.value)}
                     placeholder="agreed, deal, accept"
-                    className="w-44 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500" />
+                    className="w-44 px-2 py-1 text-xs border border-gray-300 dark:border-white/10 rounded bg-white dark:bg-[#16294a] text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500" />
                   <InfoTooltip text="Comma-separated keywords. If any bot's response contains one, the conversation stops." />
                 </label>
               </div>
