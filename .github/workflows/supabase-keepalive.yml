@@ -10,18 +10,17 @@ name: Supabase keep-alive
 # limit — no amount of pinging prevents that, so the job below reports that
 # case explicitly instead of failing with a bare curl exit code.
 #
-# THE SCHEDULE IS DISABLED (2026-08-19). The project has been paused since
-# 2026-08-01: creating the Kadenz project on 2026-07-31 used the second and
-# last active-project slot on the free JonasHeller org, and restoring AI2AI is
-# refused until a slot is freed or the org is upgraded. Pinging a project that
-# cannot be woken just mails a failure every three days, so the cron is off
-# until the project is restored.
-#
-# To re-enable once the project is active again: uncomment the schedule below.
-# Run it manually any time via workflow_dispatch to check the current state.
+# History: the project was paused 2026-08-01 because creating the Kadenz
+# project on 2026-07-31 used the second and last active-project slot on the
+# free JonasHeller org. Note that limit is scored PER USER across every org
+# where that user is an Owner or Administrator — not per organization. It was
+# resolved on 2026-08-19 by transferring this project to the DEXLab org, where
+# Jonas is a Developer (an Admin role there would have re-applied his personal
+# cap and blocked the transfer). The project ref is unchanged by a transfer,
+# so no keys, env vars or edge functions moved.
 on:
-  # schedule:
-  #   - cron: '17 6 */3 * *' # every 3 days at 06:17 UTC
+  schedule:
+    - cron: '17 6 */3 * *' # every 3 days at 06:17 UTC
   workflow_dispatch:
 
 concurrency:
