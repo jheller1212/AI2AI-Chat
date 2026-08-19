@@ -1,12 +1,22 @@
 name: Supabase keep-alive
 
 # The Supabase free tier auto-pauses projects after ~1 week without activity,
-# which silently takes down ai2aichat.com (happened May 2026). This pings an
-# edge function that performs a real database query, which counts as activity.
+# which silently takes down ai2aichat.com (happened May 2026, and again on
+# 2026-08-01). This pings an edge function that performs a real database
+# query, which counts as activity.
+#
+# Note: a keep-alive ping only defends against *inactivity* pauses. A project
+# can also be paused because the free-plan org exceeded its active-project
+# limit — no amount of pinging prevents that, so the job below reports that
+# case explicitly instead of failing with a bare curl exit code.
 on:
   schedule:
     - cron: '17 6 */3 * *' # every 3 days at 06:17 UTC
   workflow_dispatch:
+
+concurrency:
+  group: supabase-keepalive
+  cancel-in-progress: false
 
 jobs:
   ping:
@@ -14,17 +24,46 @@ jobs:
     steps:
       - name: Query Supabase via workshop-config get-public
         run: |
-          code=$(curl -s -o /dev/null -w '%{http_code}' \
-            -X POST 'https://jeqygwsufnzjjjnvkbkr.supabase.co/functions/v1/workshop-config' \
-            -H 'Content-Type: application/json' \
-            --data '{"action":"get-public","code":"keepalive-ping"}')
-          echo "HTTP $code"
-          # 404 (workshop not found) is the expected, healthy response —
-          # it proves the function ran a SELECT against the database.
-          # 200 would mean a real workshop named keepalive-ping exists.
-          # Anything else (401 = JWT verification re-enabled by mistake,
-          # 5xx, 000 = paused/unreachable) means no DB activity happened.
-          if [ "$code" -ne 404 ] && [ "$code" -ne 200 ]; then
-            echo "Unexpected status $code — function may not be reaching the database" >&2
-            exit 1
-          fi
+          set -uo pipefail   # deliberately not -e: we inspect curl's exit code ourselves
+
+          url='https://jeqygwsufnzjjjnvkbkr.supabase.co/functions/v1/workshop-config'
+          code=000
+          curl_status=0
+
+          # Three attempts, so a transient network blip does not page anyone.
+          for attempt in 1 2 3; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+              -X POST "$url" \
+              -H 'Content-Type: application/json' \
+              --data '{"action":"get-public","code":"keepalive-ping"}')
+            curl_status=$?
+            echo "attempt $attempt: curl exit $curl_status, HTTP $code"
+            # 404 (workshop not found) is the expected, healthy response —
+            # it proves the function ran a SELECT against the database.
+            # 200 would mean a real workshop named keepalive-ping exists.
+            if [ "$curl_status" -eq 0 ] && { [ "$code" = "404" ] || [ "$code" = "200" ]; }; then
+              echo "Supabase reached the database — project is awake."
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep 15; fi
+          done
+
+          echo "::error::Supabase keep-alive ping failed (curl exit $curl_status, HTTP $code)"
+          case "$curl_status" in
+            6)
+              # A paused or deleted Supabase project stops resolving in DNS.
+              echo "DNS for the project host does not resolve. On Supabase that means the project is PAUSED or DELETED — ai2aichat.com's auth, saved chats, API key vault and workshop config are all down until it is restored." >&2
+              echo "Fix: Supabase dashboard -> project AI2AIChatSupabase (jeqygwsufnzjjjnvkbkr) -> Restore. If the restore is refused, the free-plan org is over its active-project limit; free a slot or upgrade the org." >&2
+              ;;
+            28)
+              echo "Request timed out three times — Supabase may be degraded; check status.supabase.com." >&2
+              ;;
+            *)
+              case "$code" in
+                401|403) echo "Auth rejected the request — JWT verification was probably re-enabled on the workshop-config function. Redeploy it with --no-verify-jwt." >&2 ;;
+                5??)     echo "The edge function returned a server error — it may no longer reach the database." >&2 ;;
+                *)       echo "Unexpected response; inspect the workshop-config edge function." >&2 ;;
+              esac
+              ;;
+          esac
+          exit 1
