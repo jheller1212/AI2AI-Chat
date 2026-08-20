@@ -1,3 +1,6 @@
+// Not rendered in normal operation. Kept as a ready-made holding page for the
+// next time the backend is unavailable: point main.tsx at <UnderConstruction />
+// instead of <App /> and update the title/description in index.html.
 import React from 'react';
 import { Mail } from 'lucide-react';
 import { AuroraBackground } from './AuroraBackground';
